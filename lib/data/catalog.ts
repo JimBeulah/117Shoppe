@@ -1,3 +1,4 @@
+import { cache } from "react"
 import { prisma } from "@/lib/db"
 import type { CatalogFilters, CatalogResult, ProductDetail } from "@/types"
 
@@ -38,11 +39,11 @@ function toOrderBy(sort: CatalogFilters["sort"]) {
   }
 }
 
-export async function getCategoryWithProducts(
+export const getCategoryWithProducts = cache(async (
   slug: string,
   level: "parent" | "child",
   filters: CatalogFilters
-): Promise<CatalogResult | null> {
+): Promise<CatalogResult | null> => {
   const category = await prisma.category.findUnique({
     where: { slug },
     include: {
@@ -92,9 +93,9 @@ export async function getCategoryWithProducts(
     total,
     pageSize: PAGE_SIZE,
   }
-}
+})
 
-export async function getProductBySlug(slug: string): Promise<ProductDetail | null> {
+export const getProductBySlug = cache(async (slug: string): Promise<ProductDetail | null> => {
   const product = await prisma.product.findUnique({
     where: { slug },
     include: {
@@ -144,4 +145,4 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
     shop: product.shop,
     _count: product._count,
   }
-}
+})
