@@ -1,0 +1,398 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+enum DiscountType {
+  PERCENT
+  FIXED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum CoinType {
+  EARNED
+  SPENT
+}
+
+// ─── Phase 1 Models (seeded) ─────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(BUYER)
+  avatar       String?
+  coins        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  shop             Shop?
+  orders           Order[]
+  cart             Cart?
+  addresses        Address[]
+  reviews          Review[]
+  wishlist         Wishlist[]
+  notifications    Notification[]
+  sentMessages     Message[]      @relation("SentMessages")
+  receivedMessages Message[]      @relation("ReceivedMessages")
+  searchHistory    SearchHistory[]
+  coinLogs         Coin[]
+  shopFollows      ShopFollow[]
+}
+
+model Shop {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  logo           String?
+  banner         String?
+  rating         Float    @default(0)
+  followersCount Int      @default(0)
+  ownerId        String   @unique
+  createdAt      DateTime @default(now())
+
+  owner         User           @relation(fields: [ownerId], references: [id])
+  products      Product[]
+  orders        Order[]
+  reviewReplies ReviewReply[]
+  conversations Conversation[]
+  followers     ShopFollow[]
+}
+
+model Category {
+  id       String  @id @default(cuid())
+  name     String
+  slug     String  @unique
+  icon     String?
+  parentId String?
+
+  parent   Category?  @relation("SubCategories", fields: [parentId], references: [id])
+  children Category[] @relation("SubCategories")
+  products Product[]
+}
+
+model Product {
+  id              String    @id @default(cuid())
+  name            String
+  slug            String    @unique
+  description     String
+  price           Float
+  originalPrice   Float?
+  stock           Int       @default(0)
+  sold            Int       @default(0)
+  images          String[]
+  rating          Float     @default(0)
+  reviewCount     Int       @default(0)
+  isFlashSale     Boolean   @default(false)
+  flashSalePrice  Float?
+  flashSaleEndsAt DateTime?
+  isTrending      Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  categoryId      String
+  shopId          String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  category       Category        @relation(fields: [categoryId], references: [id])
+  shop           Shop            @relation(fields: [shopId], references: [id])
+  variants       ProductVariant[]
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+  reviews        Review[]
+  wishlist       Wishlist[]
+  flashSaleItems FlashSaleItem[]
+}
+
+model ProductVariant {
+  id        String  @id @default(cuid())
+  productId String
+  name      String
+  price     Float
+  stock     Int
+  sku       String?
+  image     String?
+
+  product    Product    @relation(fields: [productId], references: [id])
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+}
+
+model Banner {
+  id           String   @id @default(cuid())
+  imageUrl     String
+  linkUrl      String?
+  title        String?
+  isActive     Boolean  @default(true)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+}
+
+model Voucher {
+  id            String       @id @default(cuid())
+  code          String       @unique
+  title         String
+  discountType  DiscountType
+  discountValue Float
+  minSpend      Float        @default(0)
+  maxDiscount   Float?
+  expiresAt     DateTime
+  isActive      Boolean      @default(true)
+  usageLimit    Int?
+  createdAt     DateTime     @default(now())
+
+  orders Order[]
+}
+
+// ─── Phase 2–3 Models ────────────────────────────────────────────────────────
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  createdAt DateTime   @default(now())
+
+  user  User       @relation(fields: [userId], references: [id])
+  items CartItem[]
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String
+  productId String
+  variantId String?
+  quantity  Int
+
+  cart    Cart            @relation(fields: [cartId], references: [id])
+  product Product         @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  userId        String
+  shopId        String
+  status        OrderStatus @default(PENDING)
+  total         Float
+  shippingFee   Float       @default(0)
+  paymentMethod String?
+  addressId     String
+  voucherId     String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  user     User        @relation(fields: [userId], references: [id])
+  shop     Shop        @relation(fields: [shopId], references: [id])
+  address  Address     @relation(fields: [addressId], references: [id])
+  voucher  Voucher?    @relation(fields: [voucherId], references: [id])
+  items    OrderItem[]
+  payment  Payment?
+  shipment Shipment?
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  variantId String?
+  quantity  Int
+  price     Float
+
+  order   Order           @relation(fields: [orderId], references: [id])
+  product Product         @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+}
+
+model Address {
+  id         String  @id @default(cuid())
+  userId     String
+  fullName   String
+  phone      String
+  street     String
+  city       String
+  province   String
+  postalCode String
+  isDefault  Boolean @default(false)
+
+  user   User    @relation(fields: [userId], references: [id])
+  orders Order[]
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  orderId   String        @unique
+  method    String
+  status    PaymentStatus @default(PENDING)
+  amount    Float
+  reference String?
+  paidAt    DateTime?
+
+  order Order @relation(fields: [orderId], references: [id])
+}
+
+model Shipment {
+  id                String    @id @default(cuid())
+  orderId           String    @unique
+  courier           String?
+  trackingNumber    String?
+  status            String?
+  estimatedDelivery DateTime?
+
+  order Order @relation(fields: [orderId], references: [id])
+}
+
+// ─── Phase 4+ Models ─────────────────────────────────────────────────────────
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  orderId   String?
+  rating    Int
+  comment   String?
+  images    String[]
+  createdAt DateTime @default(now())
+
+  user    User         @relation(fields: [userId], references: [id])
+  product Product      @relation(fields: [productId], references: [id])
+  reply   ReviewReply?
+}
+
+model ReviewReply {
+  id       String @id @default(cuid())
+  reviewId String @unique
+  shopId   String
+  comment  String
+
+  review Review @relation(fields: [reviewId], references: [id])
+  shop   Shop   @relation(fields: [shopId], references: [id])
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([userId, productId])
+}
+
+model FlashSale {
+  id       String          @id @default(cuid())
+  title    String
+  startsAt DateTime
+  endsAt   DateTime
+  isActive Boolean         @default(true)
+
+  items FlashSaleItem[]
+}
+
+model FlashSaleItem {
+  id          String @id @default(cuid())
+  flashSaleId String
+  productId   String
+  salePrice   Float
+  stock       Int
+
+  flashSale FlashSale @relation(fields: [flashSaleId], references: [id])
+  product   Product   @relation(fields: [productId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  senderId       String
+  receiverId     String
+  conversationId String
+  content        String
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  sender       User         @relation("SentMessages", fields: [senderId], references: [id])
+  receiver     User         @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+}
+
+model Conversation {
+  id            String   @id @default(cuid())
+  buyerId       String
+  shopId        String
+  lastMessageAt DateTime @default(now())
+
+  shop     Shop      @relation(fields: [shopId], references: [id])
+  messages Message[]
+
+  @@unique([buyerId, shopId])
+}
+
+model ShopFollow {
+  id        String   @id @default(cuid())
+  userId    String
+  shopId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  shop Shop @relation(fields: [shopId], references: [id])
+
+  @@unique([userId, shopId])
+}
+
+model SearchHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  query     String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Coin {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int
+  type        CoinType
+  description String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
