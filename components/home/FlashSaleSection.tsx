@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { SectionHeader } from "@/components/ui/SectionHeader"
 import { CountdownTimer } from "@/components/ui/CountdownTimer"
 import { ProductCard } from "@/components/ui/ProductCard"
@@ -14,9 +15,9 @@ export function FlashSaleSection({ products, endsAt }: { products: ProductCardTy
         <div className="flex items-center gap-3">
           <span className="text-xs text-text-secondary">Ends in</span>
           <CountdownTimer endsAt={endsAt} />
-          <a href="/flash-sale" className="text-sm text-brand-600 hover:text-brand-700 font-medium transition-colors">
+          <Link href="/flash-sale" className="text-sm text-brand-600 hover:text-brand-700 font-medium transition-colors">
             View All →
-          </a>
+          </Link>
         </div>
       </div>
 

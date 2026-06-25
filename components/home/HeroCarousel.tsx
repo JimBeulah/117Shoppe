@@ -42,14 +42,15 @@ export function HeroCarousel({ banners }: { banners: BannerItem[] }) {
           <button
             key={i}
             onClick={() => setCurrent(i)}
+            aria-label={`Go to slide ${i + 1}`}
             className={`w-2 h-2 rounded-full transition-all ${i === current ? "bg-white w-5" : "bg-white/50"}`}
           />
         ))}
       </div>
 
       {/* Arrows */}
-      <button onClick={() => setCurrent((c) => (c - 1 + banners.length) % banners.length)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white w-8 h-8 rounded-full flex items-center justify-center text-lg transition-colors">‹</button>
-      <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white w-8 h-8 rounded-full flex items-center justify-center text-lg transition-colors">›</button>
+      <button aria-label="Previous banner" onClick={() => setCurrent((c) => (c - 1 + banners.length) % banners.length)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white w-8 h-8 rounded-full flex items-center justify-center text-lg transition-colors">‹</button>
+      <button aria-label="Next banner" onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white w-8 h-8 rounded-full flex items-center justify-center text-lg transition-colors">›</button>
     </div>
   )
 }
