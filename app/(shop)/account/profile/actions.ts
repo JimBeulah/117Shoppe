@@ -13,7 +13,7 @@ export async function updateProfileName(formData: FormData) {
   const { userId } = await auth()
   if (!userId) throw new Error("Unauthorized")
 
-  await clerkClient().users.updateUser(userId, { firstName: name })
+  await (await clerkClient()).users.updateUser(userId, { firstName: name })
   await prisma.user.update({ where: { clerkId: userId }, data: { name } })
 
   revalidatePath("/account/profile")

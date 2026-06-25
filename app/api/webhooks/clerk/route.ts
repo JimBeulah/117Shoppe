@@ -42,7 +42,7 @@ export async function POST(req: Request) {
       },
     })
 
-    await clerkClient().users.updateUserMetadata(id, {
+    await (await clerkClient()).users.updateUserMetadata(id, {
       publicMetadata: { role: "BUYER" },
     })
   }
