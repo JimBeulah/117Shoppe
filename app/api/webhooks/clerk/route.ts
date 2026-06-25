@@ -32,19 +32,26 @@ export async function POST(req: Request) {
     const name =
       [first_name, last_name].filter(Boolean).join(" ") || email
 
-    await prisma.user.create({
-      data: {
-        clerkId: id,
-        email,
-        name,
-        avatar: image_url ?? null,
-        role: "BUYER",
-      },
-    })
+    try {
+      await prisma.user.upsert({
+        where: { clerkId: id },
+        update: {},
+        create: {
+          clerkId: id,
+          email,
+          name,
+          avatar: image_url ?? null,
+          role: "BUYER",
+        },
+      })
 
-    await (await clerkClient()).users.updateUserMetadata(id, {
-      publicMetadata: { role: "BUYER" },
-    })
+      await (await clerkClient()).users.updateUserMetadata(id, {
+        publicMetadata: { role: "BUYER" },
+      })
+    } catch (err) {
+      console.error("[webhook] user.created handler failed:", err)
+      return new Response("Internal error", { status: 500 })
+    }
   }
 
   return new Response("OK", { status: 200 })

@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 vi.mock("@/lib/db", () => ({
   prisma: {
     user: {
-      create: vi.fn().mockResolvedValue({ id: "user_1", clerkId: "clerk_abc" }),
+      upsert: vi.fn().mockResolvedValue({ id: "user_1", clerkId: "clerk_abc" }),
     },
   },
 }))
@@ -54,7 +54,7 @@ describe("POST /api/webhooks/clerk", () => {
     process.env.CLERK_WEBHOOK_SECRET = "whsec_test"
   })
 
-  it("creates a Prisma user on user.created event", async () => {
+  it("upserts a Prisma user on user.created event", async () => {
     const { POST } = await import("@/app/api/webhooks/clerk/route")
     const { prisma } = await import("@/lib/db")
 
@@ -70,8 +70,10 @@ describe("POST /api/webhooks/clerk", () => {
 
     const res = await POST(req)
     expect(res.status).toBe(200)
-    expect(prisma.user.create).toHaveBeenCalledWith({
-      data: {
+    expect(prisma.user.upsert).toHaveBeenCalledWith({
+      where: { clerkId: "clerk_abc" },
+      update: {},
+      create: {
         clerkId: "clerk_abc",
         email: "test@example.com",
         name: "Juan dela Cruz",
