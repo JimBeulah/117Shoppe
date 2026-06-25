@@ -3,9 +3,16 @@
 import Link from "next/link"
 import { Search, ShoppingCart, Bell } from "lucide-react"
 import { useState } from "react"
+import {
+  SignInButton,
+  SignUpButton,
+  UserButton,
+} from "@clerk/nextjs"
+import { useAuth } from "@clerk/nextjs"
 
 export function Navbar() {
   const [search, setSearch] = useState("")
+  const { isSignedIn } = useAuth()
 
   return (
     <header className="bg-brand-700 text-white sticky top-0 z-50 shadow-md">
@@ -45,12 +52,30 @@ export function Navbar() {
               <Bell size={22} />
             </button>
             <div className="h-5 w-px bg-white/30" />
-            <Link href="/auth/login" className="text-sm hover:text-brand-100 transition-colors font-medium">
-              Login
-            </Link>
-            <Link href="/auth/register" className="text-sm border border-white/60 px-3 py-1 rounded hover:bg-white/10 transition-colors font-medium">
-              Register
-            </Link>
+
+            {!isSignedIn ? (
+              <>
+                <SignInButton mode="redirect">
+                  <button className="text-sm hover:text-brand-100 transition-colors font-medium">
+                    Login
+                  </button>
+                </SignInButton>
+                <SignUpButton mode="redirect">
+                  <button className="text-sm border border-white/60 px-3 py-1 rounded hover:bg-white/10 transition-colors font-medium">
+                    Register
+                  </button>
+                </SignUpButton>
+              </>
+            ) : (
+              <UserButton
+                userProfileUrl="/account/profile"
+                appearance={{
+                  elements: {
+                    avatarBox: "w-8 h-8",
+                  },
+                }}
+              />
+            )}
           </div>
         </div>
 
