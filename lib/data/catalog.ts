@@ -18,9 +18,10 @@ export function parseCatalogFilters(
       ? sortRaw
       : "best_seller"
 
-  const priceMin = Math.max(0, Number(get("price_min") ?? 0))
-  const priceMaxRaw = get("price_max")
-  const priceMax = priceMaxRaw !== undefined ? Number(priceMaxRaw) : null
+  const priceMinRaw = Number(get("price_min") ?? 0)
+  const priceMin = Number.isFinite(priceMinRaw) ? Math.max(0, priceMinRaw) : 0
+  const priceMaxRaw = Number(get("price_max") ?? "")
+  const priceMax = Number.isFinite(priceMaxRaw) && get("price_max") !== undefined ? priceMaxRaw : null
 
   const ratingRaw = get("rating")
   const rating = ratingRaw === "4" ? 4 : ratingRaw === "3" ? 3 : null
