@@ -28,6 +28,7 @@ loadEnvLocal()
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
 const prisma = new PrismaClient({ adapter })
 
+// DEV SEED ONLY — replace with bcrypt/argon2 when Phase 3 auth is implemented.
 function hash(password: string) {
   return createHash('sha256').update(password).digest('hex')
 }
@@ -53,10 +54,10 @@ async function main() {
     prisma.category.upsert({ where: { slug: 'vouchers' }, update: {}, create: { name: 'Vouchers', slug: 'vouchers', icon: '🎟️' } }),
   ])
 
-  const [electronics, fashion, homeLiving, sports, beauty, toys, food, books] = categories
+  const [electronics, fashion, homeLiving, sports, beauty] = categories
 
   // ── Users + Shops ──────────────────────────────────────────────────────────
-  const adminUser = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'admin@eshopee.com' },
     update: {},
     create: { name: 'Admin', email: 'admin@eshopee.com', passwordHash: hash('admin123'), role: Role.ADMIN, coins: 0 },

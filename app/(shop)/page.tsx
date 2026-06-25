@@ -7,11 +7,13 @@ import { FlashSaleSection } from "@/components/home/FlashSaleSection"
 import { PromoBannersRow } from "@/components/home/PromoBannersRow"
 import { TrendingProductsGrid } from "@/components/home/TrendingProductsGrid"
 
+export const revalidate = 60
+
 export default async function HomePage() {
   const [categories, banners, vouchers, flashProducts, trendingProducts, discoverProducts] = await Promise.all([
     prisma.category.findMany({ where: { parentId: null }, orderBy: { name: "asc" } }),
     prisma.banner.findMany({ where: { isActive: true }, orderBy: { displayOrder: "asc" } }),
-    prisma.voucher.findMany({ where: { isActive: true, expiresAt: { gt: new Date() } }, take: 6 }),
+    prisma.voucher.findMany({ where: { isActive: true, expiresAt: { gt: new Date() } }, orderBy: { expiresAt: "asc" }, take: 6 }),
     prisma.product.findMany({
       where: { isFlashSale: true, isActive: true },
       include: { shop: { select: { name: true, slug: true } } },
