@@ -45,9 +45,10 @@ enum CoinType {
 
 model User {
   id           String   @id @default(cuid())
+  clerkId      String   @unique
   name         String
   email        String   @unique
-  passwordHash String
+  passwordHash String?
   role         Role     @default(BUYER)
   avatar       String?
   coins        Int      @default(0)

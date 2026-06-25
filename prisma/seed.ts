@@ -60,15 +60,15 @@ async function main() {
   await prisma.user.upsert({
     where: { email: 'admin@eshopee.com' },
     update: {},
-    create: { name: 'Admin', email: 'admin@eshopee.com', passwordHash: hash('admin123'), role: Role.ADMIN, coins: 0 },
+    create: { clerkId: 'seed_admin_clerk_id', name: 'Admin', email: 'admin@eshopee.com', passwordHash: hash('admin123'), role: Role.ADMIN, coins: 0 },
   })
 
   const sellers = await Promise.all([
-    prisma.user.upsert({ where: { email: 'techpro@seller.com' }, update: {}, create: { name: 'TechPro Store', email: 'techpro@seller.com', passwordHash: hash('seller123'), role: Role.SELLER, coins: 500 } }),
-    prisma.user.upsert({ where: { email: 'fashionhub@seller.com' }, update: {}, create: { name: 'Fashion Hub', email: 'fashionhub@seller.com', passwordHash: hash('seller123'), role: Role.SELLER, coins: 300 } }),
-    prisma.user.upsert({ where: { email: 'homedecor@seller.com' }, update: {}, create: { name: 'Home Decor Ph', email: 'homedecor@seller.com', passwordHash: hash('seller123'), role: Role.SELLER, coins: 200 } }),
-    prisma.user.upsert({ where: { email: 'beautyph@seller.com' }, update: {}, create: { name: 'Beauty PH', email: 'beautyph@seller.com', passwordHash: hash('seller123'), role: Role.SELLER, coins: 400 } }),
-    prisma.user.upsert({ where: { email: 'sportstop@seller.com' }, update: {}, create: { name: 'Sports Top PH', email: 'sportstop@seller.com', passwordHash: hash('seller123'), role: Role.SELLER, coins: 250 } }),
+    prisma.user.upsert({ where: { email: 'techpro@seller.com' }, update: {}, create: { clerkId: 'seed_seller_techpro_clerk_id', name: 'TechPro Store', email: 'techpro@seller.com', passwordHash: hash('seller123'), role: Role.SELLER, coins: 500 } }),
+    prisma.user.upsert({ where: { email: 'fashionhub@seller.com' }, update: {}, create: { clerkId: 'seed_seller_fashionhub_clerk_id', name: 'Fashion Hub', email: 'fashionhub@seller.com', passwordHash: hash('seller123'), role: Role.SELLER, coins: 300 } }),
+    prisma.user.upsert({ where: { email: 'homedecor@seller.com' }, update: {}, create: { clerkId: 'seed_seller_homedecor_clerk_id', name: 'Home Decor Ph', email: 'homedecor@seller.com', passwordHash: hash('seller123'), role: Role.SELLER, coins: 200 } }),
+    prisma.user.upsert({ where: { email: 'beautyph@seller.com' }, update: {}, create: { clerkId: 'seed_seller_beautyph_clerk_id', name: 'Beauty PH', email: 'beautyph@seller.com', passwordHash: hash('seller123'), role: Role.SELLER, coins: 400 } }),
+    prisma.user.upsert({ where: { email: 'sportstop@seller.com' }, update: {}, create: { clerkId: 'seed_seller_sportstop_clerk_id', name: 'Sports Top PH', email: 'sportstop@seller.com', passwordHash: hash('seller123'), role: Role.SELLER, coins: 250 } }),
   ])
 
   const shops = await Promise.all([
