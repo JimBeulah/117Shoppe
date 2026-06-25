@@ -28,20 +28,20 @@ export function Navbar() {
               placeholder="Search products, shops, brands..."
               className="flex-1 px-4 py-2 text-text-primary text-sm outline-none"
             />
-            <button className="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2 transition-colors">
+            <button aria-label="Search" className="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2 transition-colors">
               <Search size={18} />
             </button>
           </div>
 
           {/* Right actions */}
           <div className="flex items-center gap-4 flex-shrink-0">
-            <button className="relative hover:text-brand-100 transition-colors">
+            <button aria-label="Shopping cart" className="relative hover:text-brand-100 transition-colors">
               <ShoppingCart size={22} />
               <span className="absolute -top-1.5 -right-1.5 bg-accent-sale text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                 0
               </span>
             </button>
-            <button className="hover:text-brand-100 transition-colors">
+            <button aria-label="Notifications" className="hover:text-brand-100 transition-colors">
               <Bell size={22} />
             </button>
             <div className="h-5 w-px bg-white/30" />
