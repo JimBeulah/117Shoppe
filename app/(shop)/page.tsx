@@ -42,7 +42,7 @@ export default async function HomePage() {
 
       <div className="max-w-7xl mx-auto px-4 py-4 space-y-4">
         {/* Hero + Voucher + Discover row */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 items-start">
           <HeroCarousel banners={banners} />
           <div className="flex flex-col gap-3">
             <VoucherPanel vouchers={vouchers} />

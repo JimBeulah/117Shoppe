@@ -6,7 +6,7 @@ import { formatPrice } from "@/lib/utils"
 
 export function DailyDiscoverPanel({ products }: { products: ProductCard[] }) {
   return (
-    <div className="bg-white rounded-lg p-4 flex-1">
+    <div className="bg-white rounded-lg p-4 border border-border/50 shadow-sm">
       <SectionHeader title="Daily Discover" href="/discover" />
       <div className="grid grid-cols-2 gap-2">
         {products.slice(0, 4).map((p) => (
@@ -20,7 +20,12 @@ export function DailyDiscoverPanel({ products }: { products: ProductCard[] }) {
                 className="object-cover group-hover:scale-105 transition-transform duration-300"
               />
             </div>
-            <span className="text-[10px] font-bold text-accent-sale">{formatPrice(p.price)}</span>
+            <span className="text-[10px] font-medium text-text-primary truncate mt-0.5 group-hover:text-brand-600 transition-colors">
+              {p.name}
+            </span>
+            <span className="text-xs font-bold text-accent-hot">
+              {formatPrice(p.price)}
+            </span>
           </Link>
         ))}
       </div>

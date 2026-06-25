@@ -15,13 +15,15 @@ function pad(n: number) {
 }
 
 export function CountdownTimer({ endsAt }: { endsAt: Date }) {
-  const [time, setTime] = useState(() => getTimeLeft(endsAt))
+  const [time, setTime] = useState<ReturnType<typeof getTimeLeft> | null>(null)
 
   useEffect(() => {
+    setTime(getTimeLeft(endsAt))
     const interval = setInterval(() => setTime(getTimeLeft(endsAt)), 1000)
     return () => clearInterval(interval)
   }, [endsAt])
 
+  if (!time) return <span className="text-sm font-mono font-bold">--:--:--</span>
   if (time.expired) return <span className="text-sm font-medium text-accent-sale">Ended</span>
 
   return (
