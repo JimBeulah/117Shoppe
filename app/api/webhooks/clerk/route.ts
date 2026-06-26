@@ -29,8 +29,7 @@ export async function POST(req: Request) {
   if (event.type === "user.created") {
     const { id, email_addresses, first_name, last_name, image_url } = event.data
     const email = email_addresses[0]?.email_address ?? ""
-    const name =
-      [first_name, last_name].filter(Boolean).join(" ") || email
+    const name = [first_name, last_name].filter(Boolean).join(" ") || email
 
     try {
       await prisma.user.upsert({
@@ -50,6 +49,34 @@ export async function POST(req: Request) {
       })
     } catch (err) {
       console.error("[webhook] user.created handler failed:", err)
+      return new Response("Internal error", { status: 500 })
+    }
+  }
+
+  if (event.type === "user.updated") {
+    const { id, email_addresses, first_name, last_name, image_url } = event.data
+    const email = email_addresses[0]?.email_address ?? ""
+    const name = [first_name, last_name].filter(Boolean).join(" ") || email
+
+    try {
+      await prisma.user.update({
+        where: { clerkId: id },
+        data: { email, name, avatar: image_url ?? null },
+      })
+    } catch (err) {
+      console.error("[webhook] user.updated handler failed:", err)
+      return new Response("Internal error", { status: 500 })
+    }
+  }
+
+  if (event.type === "user.deleted") {
+    const { id } = event.data
+    if (!id) return new Response("OK", { status: 200 })
+
+    try {
+      await prisma.user.delete({ where: { clerkId: id } })
+    } catch (err) {
+      console.error("[webhook] user.deleted handler failed:", err)
       return new Response("Internal error", { status: 500 })
     }
   }

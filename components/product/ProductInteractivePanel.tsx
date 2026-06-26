@@ -8,6 +8,7 @@ import { formatPrice, calcDiscount } from "@/lib/utils"
 import type { ProductVariantItem } from "@/types"
 
 interface ProductInteractivePanelProps {
+  productId: string
   basePrice: number
   originalPrice: number | null
   flashSalePrice: number | null
@@ -17,6 +18,7 @@ interface ProductInteractivePanelProps {
 }
 
 export function ProductInteractivePanel({
+  productId,
   basePrice,
   originalPrice,
   flashSalePrice,
@@ -71,7 +73,11 @@ export function ProductInteractivePanel({
       )}
 
       {/* Cart */}
-      <AddToCartButton />
+      <AddToCartButton
+        productId={productId}
+        variantId={selectedId}
+        stock={stock}
+      />
     </div>
   )
 }

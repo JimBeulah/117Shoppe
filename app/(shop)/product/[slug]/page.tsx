@@ -72,6 +72,7 @@ export default async function ProductPage({ params }: Props) {
             </div>
 
             <ProductInteractivePanel
+              productId={product.id}
               basePrice={product.price}
               originalPrice={product.originalPrice}
               flashSalePrice={product.flashSalePrice}

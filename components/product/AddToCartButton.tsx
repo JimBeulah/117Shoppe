@@ -1,14 +1,30 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
+import { addToCart } from "@/app/(shop)/cart/actions"
 
-export function AddToCartButton() {
+interface AddToCartButtonProps {
+  productId: string
+  variantId: string | null
+  stock: number
+}
+
+export function AddToCartButton({ productId, variantId, stock }: AddToCartButtonProps) {
   const [qty, setQty] = useState(1)
   const [message, setMessage] = useState("")
+  const [isPending, startTransition] = useTransition()
 
   function handleAddToCart() {
-    setMessage("Sign in to add items to your cart.")
-    setTimeout(() => setMessage(""), 3000)
+    if (stock <= 0) return
+    startTransition(async () => {
+      const result = await addToCart(productId, variantId, qty)
+      if (result.error) {
+        setMessage(result.error)
+      } else {
+        setMessage("Added to cart!")
+      }
+      setTimeout(() => setMessage(""), 3000)
+    })
   }
 
   return (
@@ -18,7 +34,8 @@ export function AddToCartButton() {
         <div className="flex items-center border border-border rounded">
           <button
             onClick={() => setQty((q) => Math.max(1, q - 1))}
-            className="w-8 h-8 flex items-center justify-center text-text-primary hover:bg-brand-50 transition-colors"
+            disabled={isPending}
+            className="w-8 h-8 flex items-center justify-center text-text-primary hover:bg-brand-50 transition-colors disabled:opacity-50"
             aria-label="Decrease quantity"
           >
             −
@@ -27,8 +44,9 @@ export function AddToCartButton() {
             {qty}
           </span>
           <button
-            onClick={() => setQty((q) => q + 1)}
-            className="w-8 h-8 flex items-center justify-center text-text-primary hover:bg-brand-50 transition-colors"
+            onClick={() => setQty((q) => Math.min(stock, q + 1))}
+            disabled={isPending || qty >= stock}
+            className="w-8 h-8 flex items-center justify-center text-text-primary hover:bg-brand-50 transition-colors disabled:opacity-50"
             aria-label="Increase quantity"
           >
             +
@@ -37,9 +55,10 @@ export function AddToCartButton() {
       </div>
       <button
         onClick={handleAddToCart}
-        className="w-full py-3 rounded-lg bg-brand-600 text-white font-semibold text-sm hover:bg-brand-700 transition-colors"
+        disabled={isPending || stock <= 0}
+        className="w-full py-3 rounded-lg bg-brand-600 text-white font-semibold text-sm hover:bg-brand-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        Add to Cart
+        {isPending ? "Adding…" : stock <= 0 ? "Out of Stock" : "Add to Cart"}
       </button>
       {message && (
         <p className="text-xs text-text-secondary text-center" role="status">

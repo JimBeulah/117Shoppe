@@ -10,7 +10,11 @@ import {
   UserButton,
 } from "@clerk/nextjs"
 
-export function Navbar() {
+interface NavbarProps {
+  cartBadge?: React.ReactNode
+}
+
+export function Navbar({ cartBadge }: NavbarProps) {
   const [search, setSearch] = useState("")
 
   return (
@@ -41,12 +45,12 @@ export function Navbar() {
 
           {/* Right actions */}
           <div className="flex items-center gap-4 flex-shrink-0">
-            <button aria-label="Shopping cart" className="relative hover:text-brand-100 transition-colors">
+            <Link href="/cart" aria-label="Shopping cart" className="relative hover:text-brand-100 transition-colors">
               <ShoppingCart size={22} />
               <span className="absolute -top-1.5 -right-1.5 bg-accent-sale text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                0
+                {cartBadge ?? "0"}
               </span>
-            </button>
+            </Link>
             <button aria-label="Notifications" className="hover:text-brand-100 transition-colors">
               <Bell size={22} />
             </button>

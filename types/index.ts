@@ -76,6 +76,67 @@ export interface ProductVariantItem {
   image: string | null
 }
 
+export interface AddressItem {
+  id: string
+  fullName: string
+  phone: string
+  street: string
+  city: string
+  province: string
+  postalCode: string
+  isDefault: boolean
+}
+
+export interface CartItemWithProduct {
+  id: string
+  quantity: number
+  product: {
+    id: string
+    name: string
+    slug: string
+    price: number
+    images: string[]
+    stock: number
+    shopId: string
+  }
+  variant: {
+    id: string
+    name: string
+    price: number
+    stock: number
+  } | null
+}
+
+export interface CartGroup {
+  shopId: string
+  shopName: string
+  shopSlug: string
+  items: CartItemWithProduct[]
+}
+
+export interface OrderConfirmation {
+  id: string
+  status: string
+  total: number
+  shippingFee: number
+  paymentMethod: string | null
+  createdAt: Date
+  shop: { name: string; slug: string }
+  address: AddressItem
+  items: {
+    id: string
+    quantity: number
+    price: number
+    product: { name: string; images: string[] }
+    variant: { name: string } | null
+  }[]
+  payment: {
+    method: string
+    status: string
+    amount: number
+  } | null
+}
+
 export interface ProductDetail {
   id: string
   name: string
