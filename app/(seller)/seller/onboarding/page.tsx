@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
 import ProductImageUploader from "@/components/seller/ProductImageUploader"
 import { createShop } from "@/lib/seller/actions"
 import { slugify } from "@/lib/utils"
