@@ -53,8 +53,8 @@ describe("Order action guards", () => {
   })
 
   it("detects IDOR: order shopId must match seller shop id", () => {
-    const orderShopId = "shop-a"
-    const sellerShopId = "shop-b"
+    const orderShopId: string = "shop-a"
+    const sellerShopId: string = "shop-b"
     const isOwner = orderShopId === sellerShopId
     expect(isOwner).toBe(false)
   })

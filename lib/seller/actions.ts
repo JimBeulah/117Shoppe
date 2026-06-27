@@ -80,7 +80,7 @@ export async function upsertProduct(data: UpsertProductData): Promise<{ error?: 
             stock: data.variants.length === 0 ? data.stock : 0,
             categoryId: data.categoryId,
             isActive: data.isActive,
-            variantOptions: data.variantOptions ?? undefined,
+            variantOptions: data.variantOptions as any,
           },
         })
         productId = data.id
@@ -97,7 +97,7 @@ export async function upsertProduct(data: UpsertProductData): Promise<{ error?: 
             categoryId: data.categoryId,
             shopId: shop.id,
             isActive: data.isActive,
-            variantOptions: data.variantOptions ?? undefined,
+            variantOptions: data.variantOptions as any,
           },
         })
         productId = product.id
