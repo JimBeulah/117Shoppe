@@ -1,11 +1,18 @@
+import Link from "next/link"
 import { getAdminCategories } from "@/lib/admin/queries"
-import { createCategory, deleteCategory } from "@/lib/admin/actions"
+import { createCategory, updateCategory, deleteCategory } from "@/lib/admin/actions"
 
 export const metadata = { title: "Admin — Categories" }
 
-export default async function AdminCategoriesPage() {
+export default async function AdminCategoriesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ edit?: string }>
+}) {
+  const { edit } = await searchParams
   const categories = await getAdminCategories()
   const parents = categories.filter((c) => !c.parentId)
+  const editingCategory = edit ? categories.find((c) => c.id === edit) : null
 
   return (
     <div className="space-y-6">
@@ -34,25 +41,104 @@ export default async function AdminCategoriesPage() {
                 <td className="px-4 py-3 text-text-secondary">{cat.icon ?? "—"}</td>
                 <td className="px-4 py-3 text-right text-text-secondary">{cat._count.products}</td>
                 <td className="px-4 py-3 text-right">
-                  <form>
-                    <input type="hidden" name="categoryId" value={cat.id} />
-                    <button
-                      type="submit"
-                      formAction={async (fd: FormData) => {
-                        "use server"
-                        await deleteCategory(fd.get("categoryId") as string)
-                      }}
-                      className="text-xs text-red-500 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </form>
+                  <div className="flex items-center justify-end gap-3">
+                    <Link href={`/admin/categories?edit=${cat.id}`} className="text-xs text-brand-600 hover:underline">
+                      Edit
+                    </Link>
+                    <form>
+                      <input type="hidden" name="categoryId" value={cat.id} />
+                      <button
+                        type="submit"
+                        formAction={async (fd: FormData) => {
+                          "use server"
+                          await deleteCategory(fd.get("categoryId") as string)
+                        }}
+                        onClick={(e) => { if (!confirm("Delete this category?")) e.preventDefault() }}
+                        className="text-xs text-red-500 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </form>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Edit Form */}
+      {editingCategory && (
+        <div className="bg-white rounded-lg border border-border-default p-5">
+          <h2 className="font-semibold text-sm text-text-primary mb-4">Edit Category</h2>
+          <form className="grid grid-cols-2 gap-3">
+            <input type="hidden" name="categoryId" value={editingCategory.id} />
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Name *</label>
+              <input
+                name="name"
+                required
+                defaultValue={editingCategory.name}
+                className="w-full text-sm border border-border-default rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Slug *</label>
+              <input
+                name="slug"
+                required
+                defaultValue={editingCategory.slug}
+                className="w-full text-sm border border-border-default rounded px-3 py-2"
+                placeholder="lowercase-with-hyphens"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Icon (emoji or URL)</label>
+              <input
+                name="icon"
+                defaultValue={editingCategory.icon ?? ""}
+                className="w-full text-sm border border-border-default rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Parent Category</label>
+              <select
+                name="parentId"
+                defaultValue={editingCategory.parentId ?? ""}
+                className="w-full text-sm border border-border-default rounded px-3 py-2 bg-white"
+              >
+                <option value="">None</option>
+                {parents.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-span-2 flex items-center gap-3">
+              <button
+                type="submit"
+                formAction={async (fd: FormData) => {
+                  "use server"
+                  await updateCategory(
+                    fd.get("categoryId") as string,
+                    fd.get("name") as string,
+                    fd.get("slug") as string,
+                    (fd.get("icon") as string) || null,
+                    (fd.get("parentId") as string) || null
+                  )
+                }}
+                className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded"
+              >
+                Save Changes
+              </button>
+              <Link href="/admin/categories" className="text-sm text-text-secondary hover:underline">
+                Cancel
+              </Link>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Create Form */}
       <div className="bg-white rounded-lg border border-border-default p-5">
