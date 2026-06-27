@@ -7,18 +7,24 @@ const isOpenSellerRoute = createRouteMatcher([
   "/seller/pending",
   "/seller/rejected",
 ])
+const isAdminRoute = createRouteMatcher(["/admin/:path*"])
 
 export default clerkMiddleware(async (auth, req) => {
-  if (isProtectedRoute(req) || isSellerRoute(req)) {
+  if (isProtectedRoute(req) || isSellerRoute(req) || isAdminRoute(req)) {
     await auth.protect()
   }
 
   if (isSellerRoute(req) && !isOpenSellerRoute(req)) {
     const { sessionClaims } = await auth()
-    // Requires Clerk Dashboard → Sessions → "Edit" to include:
-    // { "metadata": { "role": "{{user.public_metadata.role}}" } }
     if (sessionClaims?.metadata?.role !== "SELLER") {
       return Response.redirect(new URL("/seller/onboarding", req.url))
+    }
+  }
+
+  if (isAdminRoute(req)) {
+    const { sessionClaims } = await auth()
+    if (sessionClaims?.metadata?.role !== "ADMIN") {
+      return Response.redirect(new URL("/", req.url))
     }
   }
 })
