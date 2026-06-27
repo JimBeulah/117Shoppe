@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db"
 import type {
   AdminDashboardStats,
   AdminShopRow,
+  AdminUserRow,
 } from "@/types/admin"
 
 const PAGE_SIZE = 20
@@ -105,4 +106,20 @@ export async function getAdminShops(
     prisma.shop.count({ where }),
   ])
   return { shops, total, pageSize: PAGE_SIZE }
+}
+
+export async function getAdminUsers(
+  page: number
+): Promise<{ users: AdminUserRow[]; total: number; pageSize: number }> {
+  await assertAdmin()
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      select: { id: true, name: true, email: true, role: true, clerkId: true, createdAt: true },
+    }),
+    prisma.user.count(),
+  ])
+  return { users, total, pageSize: PAGE_SIZE }
 }

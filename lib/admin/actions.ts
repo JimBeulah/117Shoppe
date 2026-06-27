@@ -44,3 +44,23 @@ export async function rejectShop(shopId: string, reason: string): Promise<{ erro
   revalidatePath("/admin/dashboard")
   return {}
 }
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+export async function promoteToSeller(userId: string, clerkId: string): Promise<{ error?: string }> {
+  await assertAdmin()
+  await prisma.user.update({ where: { id: userId }, data: { role: "SELLER" } })
+  const clerk = await clerkClient()
+  await clerk.users.updateUserMetadata(clerkId, { publicMetadata: { role: "SELLER" } })
+  revalidatePath("/admin/users")
+  return {}
+}
+
+export async function demoteToBuyer(userId: string, clerkId: string): Promise<{ error?: string }> {
+  await assertAdmin()
+  await prisma.user.update({ where: { id: userId }, data: { role: "BUYER" } })
+  const clerk = await clerkClient()
+  await clerk.users.updateUserMetadata(clerkId, { publicMetadata: { role: "BUYER" } })
+  revalidatePath("/admin/users")
+  return {}
+}
