@@ -123,3 +123,36 @@ export async function deleteCategory(id: string): Promise<{ error?: string }> {
   revalidatePath("/admin/categories")
   return {}
 }
+
+// ─── Banners ──────────────────────────────────────────────────────────────────
+
+export async function createBanner(
+  imageUrl: string,
+  title: string | null,
+  linkUrl: string | null,
+  displayOrder: number,
+  isActive: boolean
+): Promise<{ error?: string }> {
+  await assertAdmin()
+  if (!imageUrl.trim()) return { error: "Image URL is required" }
+  await prisma.banner.create({ data: { imageUrl, title, linkUrl, displayOrder, isActive } })
+  revalidatePath("/admin/banners")
+  revalidatePath("/")
+  return {}
+}
+
+export async function toggleBanner(id: string, isActive: boolean): Promise<{ error?: string }> {
+  await assertAdmin()
+  await prisma.banner.update({ where: { id }, data: { isActive } })
+  revalidatePath("/admin/banners")
+  revalidatePath("/")
+  return {}
+}
+
+export async function deleteBanner(id: string): Promise<{ error?: string }> {
+  await assertAdmin()
+  await prisma.banner.delete({ where: { id } })
+  revalidatePath("/admin/banners")
+  revalidatePath("/")
+  return {}
+}

@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/db"
 import type {
+  AdminBannerRow,
   AdminCategoryRow,
   AdminDashboardStats,
   AdminOrderRow,
@@ -195,6 +196,14 @@ export async function getAdminCategories(): Promise<AdminCategoryRow[]> {
       parent: { select: { name: true } },
       _count: { select: { products: true } },
     },
+  })
+}
+
+export async function getAdminBanners(): Promise<AdminBannerRow[]> {
+  await assertAdmin()
+  return prisma.banner.findMany({
+    orderBy: { displayOrder: "asc" },
+    select: { id: true, imageUrl: true, title: true, linkUrl: true, displayOrder: true, isActive: true, createdAt: true },
   })
 }
 
