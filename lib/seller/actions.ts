@@ -64,6 +64,12 @@ export async function upsertProduct(data: UpsertProductData): Promise<{ error?: 
     if (!existing || existing.shopId !== shop.id) return { error: "Not found" }
   }
 
+  if (!data.name.trim()) return { error: "Product name is required" }
+  if (!data.slug.trim() || !/^[a-z0-9-]+$/.test(data.slug))
+    return { error: "Slug must be lowercase letters, numbers, and hyphens only" }
+  if (!data.categoryId) return { error: "Category is required" }
+  if (data.price < 0) return { error: "Price must be non-negative" }
+
   try {
     await prisma.$transaction(async (tx) => {
       let productId: string
@@ -132,7 +138,7 @@ export async function toggleProduct(
   isActive: boolean
 ): Promise<{ error?: string }> {
   const shop = await getVerifiedShop()
-  if (!shop) return { error: "Unauthorized" }
+  if (!shop || shop.status !== "ACTIVE") return { error: "Unauthorized" }
 
   const product = await prisma.product.findUnique({ where: { id: productId } })
   if (!product || product.shopId !== shop.id) return { error: "Not found" }
@@ -144,7 +150,7 @@ export async function toggleProduct(
 
 export async function deleteProduct(productId: string): Promise<{ error?: string }> {
   const shop = await getVerifiedShop()
-  if (!shop) return { error: "Unauthorized" }
+  if (!shop || shop.status !== "ACTIVE") return { error: "Unauthorized" }
 
   const product = await prisma.product.findUnique({ where: { id: productId } })
   if (!product || product.shopId !== shop.id) return { error: "Not found" }
@@ -162,7 +168,7 @@ export async function shipOrder(
   trackingNumber: string
 ): Promise<{ error?: string }> {
   const shop = await getVerifiedShop()
-  if (!shop) return { error: "Unauthorized" }
+  if (!shop || shop.status !== "ACTIVE") return { error: "Unauthorized" }
 
   const order = await prisma.order.findUnique({ where: { id: orderId } })
   if (!order || order.shopId !== shop.id) return { error: "Not found" }
@@ -184,7 +190,7 @@ export async function shipOrder(
 
 export async function cancelOrder(orderId: string): Promise<{ error?: string }> {
   const shop = await getVerifiedShop()
-  if (!shop) return { error: "Unauthorized" }
+  if (!shop || shop.status !== "ACTIVE") return { error: "Unauthorized" }
 
   const order = await prisma.order.findUnique({ where: { id: orderId } })
   if (!order || order.shopId !== shop.id) return { error: "Not found" }

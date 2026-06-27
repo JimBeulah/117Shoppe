@@ -8,6 +8,7 @@ import { formatPrice } from "@/lib/utils"
 
 interface Props {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ error?: string }>
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -18,8 +19,9 @@ const STATUS_COLOR: Record<string, string> = {
   CANCELLED: "bg-red-100 text-red-700",
 }
 
-export default async function OrderDetailPage({ params }: Props) {
+export default async function OrderDetailPage({ params, searchParams }: Props) {
   const { id } = await params
+  const { error: shipError } = await searchParams
   const user = await getCurrentUser()
   if (!user) redirect("/sign-in")
 
@@ -123,10 +125,18 @@ export default async function OrderDetailPage({ params }: Props) {
               "use server"
               const courier = formData.get("courier") as string
               const trackingNumber = formData.get("trackingNumber") as string
-              await shipOrder(order.id, courier, trackingNumber)
+              const result = await shipOrder(order.id, courier, trackingNumber)
+              if (result?.error) {
+                redirect(`/seller/orders/${order.id}?error=${encodeURIComponent(result.error)}`)
+              }
             }}
             className="space-y-3"
           >
+            {shipError && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+                {shipError}
+              </p>
+            )}
             <div className="space-y-1">
               <label className="block text-xs font-medium text-text-secondary uppercase tracking-wide">
                 Courier
