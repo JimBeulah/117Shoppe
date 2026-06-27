@@ -8,6 +8,7 @@ import type {
   AdminProductRow,
   AdminShopRow,
   AdminUserRow,
+  AdminVoucherRow,
 } from "@/types/admin"
 
 const PAGE_SIZE = 20
@@ -205,6 +206,22 @@ export async function getAdminBanners(): Promise<AdminBannerRow[]> {
     orderBy: { displayOrder: "asc" },
     select: { id: true, imageUrl: true, title: true, linkUrl: true, displayOrder: true, isActive: true, createdAt: true },
   })
+}
+
+export async function getAdminVouchers(
+  page: number
+): Promise<{ vouchers: AdminVoucherRow[]; total: number; pageSize: number }> {
+  await assertAdmin()
+  const [vouchers, total] = await Promise.all([
+    prisma.voucher.findMany({
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      select: { id: true, code: true, title: true, discountType: true, discountValue: true, minSpend: true, expiresAt: true, isActive: true },
+    }),
+    prisma.voucher.count(),
+  ])
+  return { vouchers, total, pageSize: PAGE_SIZE }
 }
 
 export async function getAdminOrderDetail(orderId: string) {

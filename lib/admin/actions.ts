@@ -156,3 +156,37 @@ export async function deleteBanner(id: string): Promise<{ error?: string }> {
   revalidatePath("/")
   return {}
 }
+
+// ─── Vouchers ─────────────────────────────────────────────────────────────────
+
+export async function createVoucher(data: {
+  code: string
+  title: string
+  discountType: "PERCENT" | "FIXED"
+  discountValue: number
+  minSpend: number
+  maxDiscount: number | null
+  expiresAt: Date
+  usageLimit: number | null
+  isActive: boolean
+}): Promise<{ error?: string }> {
+  await assertAdmin()
+  if (!data.code.trim()) return { error: "Code is required" }
+  if (!data.title.trim()) return { error: "Title is required" }
+  if (data.discountValue <= 0) return { error: "Discount value must be positive" }
+  try {
+    await prisma.voucher.create({ data })
+  } catch (e: unknown) {
+    if ((e as { code?: string })?.code === "P2002") return { error: "Voucher code already exists" }
+    return { error: "Failed to create voucher" }
+  }
+  revalidatePath("/admin/vouchers")
+  return {}
+}
+
+export async function deactivateVoucher(id: string): Promise<{ error?: string }> {
+  await assertAdmin()
+  await prisma.voucher.update({ where: { id }, data: { isActive: false } })
+  revalidatePath("/admin/vouchers")
+  return {}
+}
