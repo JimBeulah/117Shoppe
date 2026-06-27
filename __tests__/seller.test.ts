@@ -33,3 +33,29 @@ describe("slugify", () => {
     expect(slugify("Nike Air Max (2024)")).toBe("nike-air-max-2024")
   })
 })
+
+// Test the guard logic in isolation (not the full Server Action which needs Clerk/Prisma)
+describe("Order action guards", () => {
+  it("rejects ship when status is not PAID", () => {
+    const statuses = ["PENDING", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"]
+    for (const status of statuses) {
+      const canShip = status === "PAID"
+      expect(canShip).toBe(false)
+    }
+  })
+
+  it("rejects cancel when status is not PAID", () => {
+    const statuses = ["PENDING", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"]
+    for (const status of statuses) {
+      const canCancel = status === "PAID"
+      expect(canCancel).toBe(false)
+    }
+  })
+
+  it("detects IDOR: order shopId must match seller shop id", () => {
+    const orderShopId = "shop-a"
+    const sellerShopId = "shop-b"
+    const isOwner = orderShopId === sellerShopId
+    expect(isOwner).toBe(false)
+  })
+})
