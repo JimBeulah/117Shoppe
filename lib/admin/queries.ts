@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/db"
 import type {
   AdminDashboardStats,
+  AdminShopRow,
 } from "@/types/admin"
 
 const PAGE_SIZE = 20
@@ -78,4 +79,30 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
     recentOrders,
     pendingShopApplications,
   }
+}
+
+export async function getAdminShops(
+  page: number,
+  statusFilter: string | null
+): Promise<{ shops: AdminShopRow[]; total: number; pageSize: number }> {
+  await assertAdmin()
+  const where = statusFilter ? { status: statusFilter as any } : {}
+  const [shops, total] = await Promise.all([
+    prisma.shop.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        createdAt: true,
+        rejectionReason: true,
+        owner: { select: { email: true } },
+      },
+    }),
+    prisma.shop.count({ where }),
+  ])
+  return { shops, total, pageSize: PAGE_SIZE }
 }
