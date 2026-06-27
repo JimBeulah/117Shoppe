@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/db"
 import type {
   AdminDashboardStats,
+  AdminOrderRow,
   AdminShopRow,
   AdminUserRow,
 } from "@/types/admin"
@@ -122,4 +123,54 @@ export async function getAdminUsers(
     prisma.user.count(),
   ])
   return { users, total, pageSize: PAGE_SIZE }
+}
+
+export async function getAdminOrders(
+  page: number,
+  statusFilter: string | null,
+  userId: string | null
+): Promise<{ orders: AdminOrderRow[]; total: number; pageSize: number }> {
+  await assertAdmin()
+  const where: Record<string, unknown> = {}
+  if (statusFilter) where.status = statusFilter
+  if (userId) where.userId = userId
+
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      select: {
+        id: true,
+        total: true,
+        status: true,
+        createdAt: true,
+        user: { select: { name: true } },
+        shop: { select: { name: true } },
+      },
+    }),
+    prisma.order.count({ where }),
+  ])
+  return { orders, total, pageSize: PAGE_SIZE }
+}
+
+export async function getAdminOrderDetail(orderId: string) {
+  await assertAdmin()
+  return prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      user: { select: { name: true, email: true } },
+      shop: { select: { name: true } },
+      address: true,
+      items: {
+        include: {
+          product: { select: { name: true, images: true } },
+          variant: { select: { name: true } },
+        },
+      },
+      payment: true,
+      shipment: true,
+    },
+  })
 }
