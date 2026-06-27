@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { generateUploadButton, generateUploadDropzone } from "@uploadthing/react"
+import { generateUploadButton } from "@uploadthing/react"
 import type { OurFileRouter } from "@/lib/uploadthing"
 
 const UploadButton = generateUploadButton<OurFileRouter>()
@@ -22,6 +22,7 @@ export default function ProductImageUploader({
   label = "Upload Images",
 }: Props) {
   const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   return (
     <div className="space-y-3">
@@ -48,20 +49,24 @@ export default function ProductImageUploader({
       {value.length < maxFiles && (
         <UploadButton
           endpoint={endpoint}
-          onUploadBegin={() => setUploading(true)}
+          onUploadBegin={() => {
+            setUploading(true)
+            setUploadError(null)
+          }}
           onClientUploadComplete={(res) => {
             setUploading(false)
             onChange([...value, ...res.map((r) => r.url)])
           }}
           onUploadError={(err) => {
             setUploading(false)
-            alert(`Upload failed: ${err.message}`)
+            setUploadError(err.message)
           }}
           appearance={{
             button: "bg-brand-600 hover:bg-brand-700 text-white text-sm px-4 py-2 rounded",
           }}
         />
       )}
+      {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
       {uploading && <p className="text-sm text-text-secondary">Uploading…</p>}
     </div>
   )
