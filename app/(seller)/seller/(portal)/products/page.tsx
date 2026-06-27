@@ -84,9 +84,17 @@ export default async function ProductsPage({ searchParams }: Props) {
                   <td className="px-4 py-3 text-right text-text-primary">{product.stock}</td>
                   <td className="px-4 py-3 text-right text-text-secondary">{product.sold}</td>
                   <td className="px-4 py-3 text-center">
-                    <form action={toggleProduct.bind(null, product.id, !product.isActive)}>
+                    <form>
+                      <input type="hidden" name="productId" value={product.id} />
+                      <input type="hidden" name="isActive" value={String(!product.isActive)} />
                       <button
                         type="submit"
+                        formAction={async (formData: FormData) => {
+                          "use server"
+                          const id = formData.get("productId") as string
+                          const active = formData.get("isActive") === "true"
+                          await toggleProduct(id, active)
+                        }}
                         className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                           product.isActive ? "bg-brand-600" : "bg-gray-200"
                         }`}
@@ -108,9 +116,15 @@ export default async function ProductsPage({ searchParams }: Props) {
                       >
                         Edit
                       </Link>
-                      <form action={deleteProduct.bind(null, product.id)}>
+                      <form>
+                        <input type="hidden" name="productId" value={product.id} />
                         <button
                           type="submit"
+                          formAction={async (formData: FormData) => {
+                            "use server"
+                            const id = formData.get("productId") as string
+                            await deleteProduct(id)
+                          }}
                           className="text-xs text-red-500 hover:underline"
                           onClick={(e) => {
                             if (!confirm("Deactivate this product?")) e.preventDefault()
