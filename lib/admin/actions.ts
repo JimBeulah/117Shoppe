@@ -190,3 +190,75 @@ export async function deactivateVoucher(id: string): Promise<{ error?: string }>
   revalidatePath("/admin/vouchers")
   return {}
 }
+
+// ─── Flash Sales ──────────────────────────────────────────────────────────────
+
+type FlashSaleItemInput = { productId: string; salePrice: number; stock: number }
+
+export async function createFlashSale(
+  title: string,
+  startsAt: Date,
+  endsAt: Date,
+  isActive: boolean,
+  items: FlashSaleItemInput[]
+): Promise<{ error?: string; id?: string }> {
+  await assertAdmin()
+  if (!title.trim()) return { error: "Title is required" }
+  if (endsAt <= startsAt) return { error: "End time must be after start time" }
+
+  const flashSale = await prisma.flashSale.create({
+    data: {
+      title,
+      startsAt,
+      endsAt,
+      isActive,
+      items: { create: items.map((i) => ({ productId: i.productId, salePrice: i.salePrice, stock: i.stock })) },
+    },
+  })
+
+  revalidatePath("/admin/flash-sales")
+  revalidatePath("/")
+  return { id: flashSale.id }
+}
+
+export async function updateFlashSale(
+  id: string,
+  title: string,
+  startsAt: Date,
+  endsAt: Date,
+  isActive: boolean,
+  items: FlashSaleItemInput[]
+): Promise<{ error?: string }> {
+  await assertAdmin()
+  if (!title.trim()) return { error: "Title is required" }
+  if (endsAt <= startsAt) return { error: "End time must be after start time" }
+
+  await prisma.$transaction([
+    prisma.flashSaleItem.deleteMany({ where: { flashSaleId: id } }),
+    prisma.flashSale.update({
+      where: { id },
+      data: {
+        title,
+        startsAt,
+        endsAt,
+        isActive,
+        items: { create: items.map((i) => ({ productId: i.productId, salePrice: i.salePrice, stock: i.stock })) },
+      },
+    }),
+  ])
+
+  revalidatePath("/admin/flash-sales")
+  revalidatePath("/")
+  return {}
+}
+
+export async function deleteFlashSale(id: string): Promise<{ error?: string }> {
+  await assertAdmin()
+  await prisma.$transaction([
+    prisma.flashSaleItem.deleteMany({ where: { flashSaleId: id } }),
+    prisma.flashSale.delete({ where: { id } }),
+  ])
+  revalidatePath("/admin/flash-sales")
+  revalidatePath("/")
+  return {}
+}

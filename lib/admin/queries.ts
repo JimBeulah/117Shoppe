@@ -4,6 +4,7 @@ import type {
   AdminBannerRow,
   AdminCategoryRow,
   AdminDashboardStats,
+  AdminFlashSaleRow,
   AdminOrderRow,
   AdminProductRow,
   AdminShopRow,
@@ -222,6 +223,45 @@ export async function getAdminVouchers(
     prisma.voucher.count(),
   ])
   return { vouchers, total, pageSize: PAGE_SIZE }
+}
+
+export async function getAdminFlashSales(): Promise<AdminFlashSaleRow[]> {
+  await assertAdmin()
+  return prisma.flashSale.findMany({
+    orderBy: { startsAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      startsAt: true,
+      endsAt: true,
+      isActive: true,
+      _count: { select: { items: true } },
+    },
+  })
+}
+
+export async function getAdminFlashSaleForEdit(id: string) {
+  await assertAdmin()
+  return prisma.flashSale.findUnique({
+    where: { id },
+    include: {
+      items: {
+        include: { product: { select: { id: true, name: true, price: true } } },
+      },
+    },
+  })
+}
+
+export async function searchAdminProducts(q: string) {
+  await assertAdmin()
+  return prisma.product.findMany({
+    where: {
+      OR: [{ name: { contains: q, mode: "insensitive" } }],
+      isActive: true,
+    },
+    take: 20,
+    select: { id: true, name: true, price: true, shop: { select: { name: true } } },
+  })
 }
 
 export async function getAdminOrderDetail(orderId: string) {
