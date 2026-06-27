@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/db"
 import type {
+  AdminCategoryRow,
   AdminDashboardStats,
   AdminOrderRow,
   AdminProductRow,
@@ -179,6 +180,22 @@ export async function getAdminProducts(
     prisma.product.count(),
   ])
   return { products, total, pageSize: PAGE_SIZE }
+}
+
+export async function getAdminCategories(): Promise<AdminCategoryRow[]> {
+  await assertAdmin()
+  return prisma.category.findMany({
+    orderBy: [{ parentId: "asc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      icon: true,
+      parentId: true,
+      parent: { select: { name: true } },
+      _count: { select: { products: true } },
+    },
+  })
 }
 
 export async function getAdminOrderDetail(orderId: string) {

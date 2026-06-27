@@ -73,3 +73,53 @@ export async function adminToggleProduct(productId: string, isActive: boolean): 
   revalidatePath("/admin/products")
   return {}
 }
+
+// ─── Categories ───────────────────────────────────────────────────────────────
+
+export async function createCategory(
+  name: string,
+  slug: string,
+  icon: string | null,
+  parentId: string | null
+): Promise<{ error?: string }> {
+  await assertAdmin()
+  if (!name.trim()) return { error: "Name is required" }
+  if (!slug.trim() || !/^[a-z0-9-]+$/.test(slug)) return { error: "Slug must be lowercase letters, numbers, hyphens" }
+  try {
+    await prisma.category.create({ data: { name, slug, icon, parentId: parentId || null } })
+  } catch (e: unknown) {
+    if ((e as { code?: string })?.code === "P2002") return { error: "Slug already in use" }
+    return { error: "Failed to create category" }
+  }
+  revalidatePath("/admin/categories")
+  return {}
+}
+
+export async function updateCategory(
+  id: string,
+  name: string,
+  slug: string,
+  icon: string | null,
+  parentId: string | null
+): Promise<{ error?: string }> {
+  await assertAdmin()
+  if (!name.trim()) return { error: "Name is required" }
+  if (!slug.trim() || !/^[a-z0-9-]+$/.test(slug)) return { error: "Slug must be lowercase letters, numbers, hyphens" }
+  try {
+    await prisma.category.update({ where: { id }, data: { name, slug, icon, parentId: parentId || null } })
+  } catch (e: unknown) {
+    if ((e as { code?: string })?.code === "P2002") return { error: "Slug already in use" }
+    return { error: "Failed to update category" }
+  }
+  revalidatePath("/admin/categories")
+  return {}
+}
+
+export async function deleteCategory(id: string): Promise<{ error?: string }> {
+  await assertAdmin()
+  const count = await prisma.product.count({ where: { categoryId: id } })
+  if (count > 0) return { error: `Cannot delete: ${count} product(s) use this category` }
+  await prisma.category.delete({ where: { id } })
+  revalidatePath("/admin/categories")
+  return {}
+}
