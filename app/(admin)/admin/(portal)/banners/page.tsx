@@ -19,6 +19,7 @@ export default async function AdminBannersPage() {
               <th className="text-left px-4 py-3 text-text-secondary font-medium">Link</th>
               <th className="text-right px-4 py-3 text-text-secondary font-medium">Order</th>
               <th className="text-center px-4 py-3 text-text-secondary font-medium">Active</th>
+              <th className="text-left px-4 py-3 text-text-secondary font-medium">Created</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -48,6 +49,9 @@ export default async function AdminBannersPage() {
                     </button>
                   </form>
                 </td>
+                <td className="px-4 py-3 text-text-secondary">
+                  {new Date(banner.createdAt).toLocaleDateString("en-PH")}
+                </td>
                 <td className="px-4 py-3 text-right">
                   <form>
                     <input type="hidden" name="bannerId" value={banner.id} />
@@ -67,7 +71,7 @@ export default async function AdminBannersPage() {
               </tr>
             ))}
             {banners.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-text-secondary text-sm">No banners yet.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-text-secondary text-sm">No banners yet.</td></tr>
             )}
           </tbody>
         </table>
