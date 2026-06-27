@@ -4,9 +4,9 @@ import type {
   AdminDashboardStats,
 } from "@/types/admin"
 
-export const PAGE_SIZE = 20
+const PAGE_SIZE = 20
 
-export async function assertAdmin() {
+async function assertAdmin() {
   const { sessionClaims } = await auth()
   if (sessionClaims?.metadata?.role !== "ADMIN") throw new Error("Unauthorized")
 }
@@ -48,7 +48,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
     }),
     prisma.shop.findMany({
       where: { status: "PENDING" },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
       take: 5,
       select: {
         id: true,

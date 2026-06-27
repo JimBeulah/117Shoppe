@@ -1,6 +1,7 @@
 import { getAdminDashboardStats } from "@/lib/admin/queries"
 import AdminStatCard from "@/components/admin/AdminStatCard"
 import OrderStatusBadge from "@/components/admin/OrderStatusBadge"
+import ShopStatusBadge from "@/components/admin/ShopStatusBadge"
 import { formatPrice } from "@/lib/utils"
 import Link from "next/link"
 
@@ -76,29 +77,34 @@ export default async function AdminDashboardPage() {
           {stats.recentOrders.length === 0 ? (
             <p className="p-4 text-sm text-text-secondary">No orders yet.</p>
           ) : (
-            <ul className="divide-y divide-border-default">
-              {stats.recentOrders.map((order) => (
-                <li key={order.id}>
-                  <Link
-                    href={`/admin/orders/${order.id}`}
-                    className="flex items-center justify-between px-4 py-3 hover:bg-brand-50 transition-colors"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-text-primary">{order.user.name}</p>
-                      <p className="text-xs text-text-secondary">
-                        {order.shop.name} · {new Date(order.createdAt).toLocaleDateString("en-PH")}
-                      </p>
-                    </div>
-                    <div className="text-right space-y-1">
-                      <p className="text-sm font-semibold text-text-primary">
-                        {formatPrice(order.total)}
-                      </p>
-                      <OrderStatusBadge status={order.status} />
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <table className="w-full text-sm">
+              <thead className="bg-surface-subtle border-b border-border-default">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-text-secondary">Order ID</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-text-secondary">Buyer</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-text-secondary">Shop</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-text-secondary">Total</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-text-secondary">Status</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-text-secondary">Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-default">
+                {stats.recentOrders.map((order) => (
+                  <tr key={order.id} className="hover:bg-brand-50 transition-colors">
+                    <td className="px-4 py-3">
+                      <Link href={`/admin/orders/${order.id}`} className="font-mono text-xs text-text-secondary hover:underline">
+                        #{order.id.slice(-8).toUpperCase()}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-text-primary">{order.user.name}</td>
+                    <td className="px-4 py-3 text-sm text-text-secondary">{order.shop.name}</td>
+                    <td className="px-4 py-3 text-sm font-semibold text-text-primary">{formatPrice(order.total)}</td>
+                    <td className="px-4 py-3"><OrderStatusBadge status={order.status} /></td>
+                    <td className="px-4 py-3 text-xs text-text-secondary">{new Date(order.createdAt).toLocaleDateString("en-PH")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
 
@@ -120,7 +126,10 @@ export default async function AdminDashboardPage() {
               {stats.pendingShopApplications.map((shop) => (
                 <li key={shop.id} className="flex items-center justify-between px-4 py-3">
                   <div>
-                    <p className="text-sm font-medium text-text-primary">{shop.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-text-primary">{shop.name}</p>
+                      <ShopStatusBadge status="PENDING" />
+                    </div>
                     <p className="text-xs text-text-secondary">
                       {shop.owner.email} · {new Date(shop.createdAt).toLocaleDateString("en-PH")}
                     </p>
