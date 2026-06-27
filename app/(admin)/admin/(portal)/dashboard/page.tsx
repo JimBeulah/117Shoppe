@@ -1,4 +1,5 @@
 import { getAdminDashboardStats } from "@/lib/admin/queries"
+import { approveShop } from "@/lib/admin/actions"
 import AdminStatCard from "@/components/admin/AdminStatCard"
 import OrderStatusBadge from "@/components/admin/OrderStatusBadge"
 import ShopStatusBadge from "@/components/admin/ShopStatusBadge"
@@ -6,37 +7,6 @@ import { formatPrice } from "@/lib/utils"
 import Link from "next/link"
 
 export const metadata = { title: "Admin Dashboard" }
-
-async function approveShopInline(shopId: string) {
-  "use server"
-  const { prisma } = await import("@/lib/db")
-  const { clerkClient, auth } = await import("@clerk/nextjs/server")
-  const { revalidatePath } = await import("next/cache")
-
-  const { sessionClaims } = await auth()
-  if (sessionClaims?.metadata?.role !== "ADMIN") throw new Error("Unauthorized")
-
-  // Find the shop owner's clerkId
-  const shop = await prisma.shop.findUnique({
-    where: { id: shopId },
-    select: { ownerId: true, owner: { select: { clerkId: true } } },
-  })
-  if (!shop) throw new Error("Shop not found")
-
-  // Update shop status and user role in DB atomically
-  await prisma.$transaction([
-    prisma.shop.update({ where: { id: shopId }, data: { status: "ACTIVE" } }),
-    prisma.user.update({ where: { id: shop.ownerId }, data: { role: "SELLER" } }),
-  ])
-
-  // Sync role to Clerk metadata
-  const clerk = await clerkClient()
-  await clerk.users.updateUserMetadata(shop.owner.clerkId, {
-    publicMetadata: { role: "SELLER" },
-  })
-
-  revalidatePath("/admin/dashboard")
-}
 
 export default async function AdminDashboardPage() {
   const stats = await getAdminDashboardStats()
@@ -136,11 +106,12 @@ export default async function AdminDashboardPage() {
                   </div>
                   <div className="flex gap-2 items-center">
                     <form
-                      action={async () => {
+                      action={async (fd: FormData) => {
                         "use server"
-                        await approveShopInline(shop.id)
+                        await approveShop(fd.get("shopId") as string)
                       }}
                     >
+                      <input type="hidden" name="shopId" value={shop.id} />
                       <button
                         type="submit"
                         className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
@@ -149,7 +120,7 @@ export default async function AdminDashboardPage() {
                       </button>
                     </form>
                     <Link
-                      href={`/admin/sellers?highlight=${shop.id}`}
+                      href="/admin/sellers?status=PENDING"
                       className="text-xs px-2 py-1 border border-border-default rounded text-text-secondary hover:bg-brand-50"
                     >
                       Reject

@@ -93,7 +93,10 @@ export async function getAdminShops(
   statusFilter: string | null
 ): Promise<{ shops: AdminShopRow[]; total: number; pageSize: number }> {
   await assertAdmin()
-  const where = statusFilter ? { status: statusFilter as any } : {}
+  const VALID_SHOP_STATUSES = ["PENDING", "ACTIVE", "REJECTED"]
+  const where = statusFilter && VALID_SHOP_STATUSES.includes(statusFilter)
+    ? { status: statusFilter as "PENDING" | "ACTIVE" | "REJECTED" }
+    : {}
   const [shops, total] = await Promise.all([
     prisma.shop.findMany({
       where,
@@ -136,8 +139,9 @@ export async function getAdminOrders(
   userId: string | null
 ): Promise<{ orders: AdminOrderRow[]; total: number; pageSize: number }> {
   await assertAdmin()
-  const where: Record<string, unknown> = {}
-  if (statusFilter) where.status = statusFilter
+  const VALID_ORDER_STATUSES = ["PENDING", "PAID", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"]
+  const where: any = {}
+  if (statusFilter && VALID_ORDER_STATUSES.includes(statusFilter)) where.status = statusFilter
   if (userId) where.userId = userId
 
   const [orders, total] = await Promise.all([

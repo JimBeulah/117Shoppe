@@ -20,8 +20,12 @@ export async function approveShop(shopId: string): Promise<{ error?: string }> {
     prisma.shop.update({ where: { id: shopId }, data: { status: "ACTIVE", rejectionReason: null } }),
     prisma.user.update({ where: { id: shop.ownerId }, data: { role: "SELLER" } }),
   ])
-  const clerk = await clerkClient()
-  await clerk.users.updateUserMetadata(shop.owner.clerkId, { publicMetadata: { role: "SELLER" } })
+  try {
+    const clerk = await clerkClient()
+    await clerk.users.updateUserMetadata(shop.owner.clerkId, { publicMetadata: { role: "SELLER" } })
+  } catch {
+    return { error: "Role saved but Clerk sync failed — please retry" }
+  }
 
   revalidatePath("/admin/sellers")
   revalidatePath("/admin/dashboard")
@@ -30,6 +34,7 @@ export async function approveShop(shopId: string): Promise<{ error?: string }> {
 
 export async function rejectShop(shopId: string, reason: string): Promise<{ error?: string }> {
   await assertAdmin()
+  if (!reason.trim()) return { error: "Rejection reason is required" }
   const shop = await prisma.shop.findUnique({ where: { id: shopId }, include: { owner: true } })
   if (!shop) return { error: "Shop not found" }
 
@@ -37,8 +42,12 @@ export async function rejectShop(shopId: string, reason: string): Promise<{ erro
     prisma.shop.update({ where: { id: shopId }, data: { status: "REJECTED", rejectionReason: reason } }),
     prisma.user.update({ where: { id: shop.ownerId }, data: { role: "BUYER" } }),
   ])
-  const clerk = await clerkClient()
-  await clerk.users.updateUserMetadata(shop.owner.clerkId, { publicMetadata: { role: "BUYER" } })
+  try {
+    const clerk = await clerkClient()
+    await clerk.users.updateUserMetadata(shop.owner.clerkId, { publicMetadata: { role: "BUYER" } })
+  } catch {
+    return { error: "Role saved but Clerk sync failed — please retry" }
+  }
 
   revalidatePath("/admin/sellers")
   revalidatePath("/admin/dashboard")
@@ -50,8 +59,12 @@ export async function rejectShop(shopId: string, reason: string): Promise<{ erro
 export async function promoteToSeller(userId: string, clerkId: string): Promise<{ error?: string }> {
   await assertAdmin()
   await prisma.user.update({ where: { id: userId }, data: { role: "SELLER" } })
-  const clerk = await clerkClient()
-  await clerk.users.updateUserMetadata(clerkId, { publicMetadata: { role: "SELLER" } })
+  try {
+    const clerk = await clerkClient()
+    await clerk.users.updateUserMetadata(clerkId, { publicMetadata: { role: "SELLER" } })
+  } catch {
+    return { error: "Role saved but Clerk sync failed — please retry" }
+  }
   revalidatePath("/admin/users")
   return {}
 }
@@ -59,8 +72,12 @@ export async function promoteToSeller(userId: string, clerkId: string): Promise<
 export async function demoteToBuyer(userId: string, clerkId: string): Promise<{ error?: string }> {
   await assertAdmin()
   await prisma.user.update({ where: { id: userId }, data: { role: "BUYER" } })
-  const clerk = await clerkClient()
-  await clerk.users.updateUserMetadata(clerkId, { publicMetadata: { role: "BUYER" } })
+  try {
+    const clerk = await clerkClient()
+    await clerk.users.updateUserMetadata(clerkId, { publicMetadata: { role: "BUYER" } })
+  } catch {
+    return { error: "Role saved but Clerk sync failed — please retry" }
+  }
   revalidatePath("/admin/users")
   return {}
 }
@@ -206,15 +223,21 @@ export async function createFlashSale(
   if (!title.trim()) return { error: "Title is required" }
   if (endsAt <= startsAt) return { error: "End time must be after start time" }
 
-  const flashSale = await prisma.flashSale.create({
-    data: {
-      title,
-      startsAt,
-      endsAt,
-      isActive,
-      items: { create: items.map((i) => ({ productId: i.productId, salePrice: i.salePrice, stock: i.stock })) },
-    },
-  })
+  let flashSale: { id: string }
+  try {
+    flashSale = await prisma.flashSale.create({
+      data: {
+        title,
+        startsAt,
+        endsAt,
+        isActive,
+        items: { create: items.map((i) => ({ productId: i.productId, salePrice: i.salePrice, stock: i.stock })) },
+      },
+    })
+  } catch (e: any) {
+    if (e?.code === "P2003") return { error: "One or more product IDs not found" }
+    return { error: "Failed to create flash sale" }
+  }
 
   revalidatePath("/admin/flash-sales")
   revalidatePath("/")
@@ -233,19 +256,24 @@ export async function updateFlashSale(
   if (!title.trim()) return { error: "Title is required" }
   if (endsAt <= startsAt) return { error: "End time must be after start time" }
 
-  await prisma.$transaction([
-    prisma.flashSaleItem.deleteMany({ where: { flashSaleId: id } }),
-    prisma.flashSale.update({
-      where: { id },
-      data: {
-        title,
-        startsAt,
-        endsAt,
-        isActive,
-        items: { create: items.map((i) => ({ productId: i.productId, salePrice: i.salePrice, stock: i.stock })) },
-      },
-    }),
-  ])
+  try {
+    await prisma.$transaction([
+      prisma.flashSaleItem.deleteMany({ where: { flashSaleId: id } }),
+      prisma.flashSale.update({
+        where: { id },
+        data: {
+          title,
+          startsAt,
+          endsAt,
+          isActive,
+          items: { create: items.map((i) => ({ productId: i.productId, salePrice: i.salePrice, stock: i.stock })) },
+        },
+      }),
+    ])
+  } catch (e: any) {
+    if (e?.code === "P2003") return { error: "One or more product IDs not found" }
+    return { error: "Failed to update flash sale" }
+  }
 
   revalidatePath("/admin/flash-sales")
   revalidatePath("/")
