@@ -41,6 +41,12 @@ enum CoinType {
   SPENT
 }
 
+enum ShopStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+}
+
 // ─── Phase 1 Models (seeded) ─────────────────────────────────────────────────
 
 model User {
@@ -80,6 +86,8 @@ model Shop {
   followersCount Int      @default(0)
   ownerId        String   @unique
   createdAt      DateTime @default(now())
+  status         ShopStatus @default(PENDING)
+  rejectionReason String?
 
   owner         User           @relation(fields: [ownerId], references: [id])
   products      Product[]
@@ -122,6 +130,7 @@ model Product {
   shopId          String
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  variantOptions  Json?
 
   category       Category        @relation(fields: [categoryId], references: [id])
   shop           Shop            @relation(fields: [shopId], references: [id])
