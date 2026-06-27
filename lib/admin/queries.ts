@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db"
 import type {
   AdminDashboardStats,
   AdminOrderRow,
+  AdminProductRow,
   AdminShopRow,
   AdminUserRow,
 } from "@/types/admin"
@@ -153,6 +154,31 @@ export async function getAdminOrders(
     prisma.order.count({ where }),
   ])
   return { orders, total, pageSize: PAGE_SIZE }
+}
+
+export async function getAdminProducts(
+  page: number
+): Promise<{ products: AdminProductRow[]; total: number; pageSize: number }> {
+  await assertAdmin()
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        stock: true,
+        isActive: true,
+        createdAt: true,
+        shop: { select: { name: true } },
+        category: { select: { name: true } },
+      },
+    }),
+    prisma.product.count(),
+  ])
+  return { products, total, pageSize: PAGE_SIZE }
 }
 
 export async function getAdminOrderDetail(orderId: string) {

@@ -64,3 +64,12 @@ export async function demoteToBuyer(userId: string, clerkId: string): Promise<{ 
   revalidatePath("/admin/users")
   return {}
 }
+
+// ─── Products ─────────────────────────────────────────────────────────────────
+
+export async function adminToggleProduct(productId: string, isActive: boolean): Promise<{ error?: string }> {
+  await assertAdmin()
+  await prisma.product.update({ where: { id: productId }, data: { isActive } })
+  revalidatePath("/admin/products")
+  return {}
+}
