@@ -34,7 +34,7 @@ export function ShopHeader({ shop, initialFollowing, isSignedIn }: Props) {
       <div className="px-5 pb-4">
         <div className="flex items-end gap-4 -mt-9 mb-3">
           {/* Logo */}
-          <div className="relative w-18 h-18 rounded-full overflow-hidden border-4 border-white bg-brand-100 flex-shrink-0 shadow-sm"
+          <div className="relative rounded-full overflow-hidden border-4 border-white bg-brand-100 flex-shrink-0 shadow-sm"
                style={{ width: 72, height: 72 }}>
             {shop.logo ? (
               <Image
