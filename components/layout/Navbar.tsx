@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { Search, ShoppingCart, Bell } from "lucide-react"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import {
   Show,
   SignInButton,
@@ -16,6 +17,17 @@ interface NavbarProps {
 
 export function Navbar({ cartBadge }: NavbarProps) {
   const [search, setSearch] = useState("")
+  const router = useRouter()
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault()
+    const q = search.trim()
+    if (q) {
+      router.push(`/search?q=${encodeURIComponent(q)}`)
+    } else {
+      router.push("/search")
+    }
+  }
 
   return (
     <header className="bg-brand-700 text-white sticky top-0 z-50 shadow-md">
@@ -30,7 +42,10 @@ export function Navbar({ cartBadge }: NavbarProps) {
           </Link>
 
           {/* Search */}
-          <div className="flex-1 flex items-center bg-white rounded-sm overflow-hidden max-w-2xl">
+          <form
+            onSubmit={handleSearch}
+            className="flex-1 flex items-center bg-white rounded-sm overflow-hidden max-w-2xl"
+          >
             <input
               type="text"
               value={search}
@@ -38,10 +53,14 @@ export function Navbar({ cartBadge }: NavbarProps) {
               placeholder="Search products, shops, brands..."
               className="flex-1 px-4 py-2 text-text-primary text-sm outline-none"
             />
-            <button aria-label="Search" className="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2 transition-colors">
+            <button
+              type="submit"
+              aria-label="Search"
+              className="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2 transition-colors"
+            >
               <Search size={18} />
             </button>
-          </div>
+          </form>
 
           {/* Right actions */}
           <div className="flex items-center gap-4 flex-shrink-0">
