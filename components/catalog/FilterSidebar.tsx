@@ -1,7 +1,9 @@
 "use client"
 
+import Link from "next/link"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { useState } from "react"
+import type { CategoryItem } from "@/types"
 
 const RATING_OPTIONS = [
   { value: "4", label: "4★ & Up" },
@@ -12,9 +14,17 @@ interface FilterSidebarProps {
   currentPriceMin: number
   currentPriceMax: number | null
   currentRating: number | null
+  categories?: CategoryItem[]
+  currentCategory?: string | null
 }
 
-export function FilterSidebar({ currentPriceMin, currentPriceMax, currentRating }: FilterSidebarProps) {
+export function FilterSidebar({
+  currentPriceMin,
+  currentPriceMax,
+  currentRating,
+  categories,
+  currentCategory,
+}: FilterSidebarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -61,6 +71,52 @@ export function FilterSidebar({ currentPriceMin, currentPriceMax, currentRating 
           Clear all
         </button>
       </div>
+
+      {/* Category filter — only rendered when categories are provided (search page) */}
+      {categories && categories.length > 0 && (
+        <div>
+          <h4 className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-2">
+            Category
+          </h4>
+          <div className="space-y-1">
+            {/* "All" option */}
+            <Link
+              href={(() => {
+                const params = new URLSearchParams(searchParams.toString())
+                params.delete("category")
+                params.delete("page")
+                return `${pathname}?${params.toString()}`
+              })()}
+              className={`block w-full text-left px-3 py-2 rounded text-sm transition-colors ${
+                !currentCategory
+                  ? "bg-brand-100 text-brand-700 font-medium"
+                  : "hover:bg-brand-50 text-text-primary"
+              }`}
+            >
+              All Categories
+            </Link>
+            {categories.map((cat) => {
+              const params = new URLSearchParams(searchParams.toString())
+              params.set("category", cat.slug)
+              params.delete("page")
+              return (
+                <Link
+                  key={cat.id}
+                  href={`${pathname}?${params.toString()}`}
+                  className={`block w-full text-left px-3 py-2 rounded text-sm transition-colors ${
+                    currentCategory === cat.slug
+                      ? "bg-brand-100 text-brand-700 font-medium"
+                      : "hover:bg-brand-50 text-text-primary"
+                  }`}
+                >
+                  {cat.icon && <span className="mr-1.5" aria-hidden="true">{cat.icon}</span>}
+                  {cat.name}
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div>
         <h4 className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-2">

@@ -1,15 +1,16 @@
 "use client"
 
 import { FilterSidebar } from "@/components/catalog/FilterSidebar"
-import type { CatalogFilters } from "@/types"
+import type { CatalogFilters, CategoryItem } from "@/types"
 
 interface FilterDrawerProps {
   open: boolean
   onClose: () => void
   filters: CatalogFilters
+  categories?: CategoryItem[]
 }
 
-export function FilterDrawer({ open, onClose, filters }: FilterDrawerProps) {
+export function FilterDrawer({ open, onClose, filters, categories }: FilterDrawerProps) {
   if (!open) return null
 
   return (
@@ -30,6 +31,8 @@ export function FilterDrawer({ open, onClose, filters }: FilterDrawerProps) {
           currentPriceMin={filters.priceMin}
           currentPriceMax={filters.priceMax}
           currentRating={filters.rating}
+          categories={categories}
+          currentCategory={filters.category}
         />
       </div>
     </div>

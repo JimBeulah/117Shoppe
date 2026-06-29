@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { FilterDrawer } from "@/components/catalog/FilterDrawer"
-import type { CatalogFilters } from "@/types"
+import type { CatalogFilters, CategoryItem } from "@/types"
 
 const SORT_OPTIONS = [
   { value: "best_seller", label: "Best Seller" },
@@ -16,9 +16,10 @@ interface SortBarProps {
   total: number
   currentSort: string
   filters: CatalogFilters
+  categories?: CategoryItem[]
 }
 
-export function SortBar({ total, currentSort, filters }: SortBarProps) {
+export function SortBar({ total, currentSort, filters, categories }: SortBarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -33,7 +34,12 @@ export function SortBar({ total, currentSort, filters }: SortBarProps) {
 
   return (
     <>
-      <FilterDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} filters={filters} />
+      <FilterDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        filters={filters}
+        categories={categories}
+      />
       <div className="flex items-center justify-between py-3 border-b border-border">
         <p className="text-sm text-text-secondary">
           <span className="font-medium text-text-primary">{total.toLocaleString()}</span> results
