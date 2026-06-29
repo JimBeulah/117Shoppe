@@ -53,6 +53,30 @@ export async function createShop(formData: FormData): Promise<{ error?: string }
   redirect("/seller/pending")
 }
 
+export async function updateShop(formData: FormData): Promise<{ error?: string }> {
+  const shop = await getVerifiedShop()
+  if (!shop) return { error: "Unauthorized" }
+
+  const name = (formData.get("name") as string)?.trim()
+  const logo = (formData.get("logo") as string) || null
+  const banner = (formData.get("banner") as string) || null
+
+  if (!name) return { error: "Shop name is required" }
+
+  try {
+    await prisma.shop.update({
+      where: { id: shop.id },
+      data: { name, logo, banner },
+    })
+  } catch {
+    return { error: "Failed to update shop. Please try again." }
+  }
+
+  revalidatePath("/seller/settings")
+  revalidatePath(`/shop/${shop.slug}`)
+  return {}
+}
+
 // ─── Products ─────────────────────────────────────────────────────────────────
 
 export async function upsertProduct(data: UpsertProductData): Promise<{ error?: string }> {
