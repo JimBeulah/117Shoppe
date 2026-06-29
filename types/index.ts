@@ -49,6 +49,8 @@ export interface CatalogFilters {
   priceMax: number | null
   rating: number | null
   page: number
+  q: string
+  category: string | null
 }
 
 export interface CatalogCategory {

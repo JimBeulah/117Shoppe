@@ -16,6 +16,8 @@ describe("parseCatalogFilters", () => {
       priceMax: null,
       rating: null,
       page: 1,
+      q: "",
+      category: null,
     })
   })
 

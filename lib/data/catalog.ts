@@ -1,6 +1,7 @@
 import { cache } from "react"
 import { prisma } from "@/lib/db"
-import type { CatalogFilters, CatalogResult, ProductDetail } from "@/types"
+import type { Prisma } from "@/lib/generated/prisma/client"
+import type { CatalogFilters, CatalogResult, CategoryItem, ProductCard, ProductDetail } from "@/types"
 
 const PAGE_SIZE = 20
 
@@ -27,8 +28,10 @@ export function parseCatalogFilters(
   const rating = ratingRaw === "4" ? 4 : ratingRaw === "3" ? 3 : null
 
   const page = Math.max(1, Number(get("page") ?? 1))
+  const q = get("q") ?? ""
+  const category = get("category") ?? null
 
-  return { sort, priceMin, priceMax, rating, page }
+  return { sort, priceMin, priceMax, rating, page, q, category }
 }
 
 function toOrderBy(sort: CatalogFilters["sort"]) {
@@ -39,6 +42,61 @@ function toOrderBy(sort: CatalogFilters["sort"]) {
     default:           return { sold: "desc" as const }
   }
 }
+
+export function buildSearchWhere(filters: CatalogFilters): Prisma.ProductWhereInput {
+  const where: Prisma.ProductWhereInput = { isActive: true }
+
+  if (filters.q) {
+    where.OR = [
+      { name: { contains: filters.q, mode: "insensitive" } },
+      { description: { contains: filters.q, mode: "insensitive" } },
+    ]
+  }
+
+  if (filters.category) {
+    where.category = { slug: filters.category }
+  }
+
+  if (filters.priceMin > 0 || filters.priceMax !== null) {
+    where.price = {
+      ...(filters.priceMin > 0 ? { gte: filters.priceMin } : {}),
+      ...(filters.priceMax !== null ? { lte: filters.priceMax } : {}),
+    }
+  }
+
+  if (filters.rating !== null) {
+    where.rating = { gte: filters.rating }
+  }
+
+  return where
+}
+
+export const searchProducts = cache(async (
+  filters: CatalogFilters
+): Promise<{ products: ProductCard[]; total: number; pageSize: number }> => {
+  const where = buildSearchWhere(filters)
+
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      include: { shop: { select: { name: true, slug: true } } },
+      orderBy: toOrderBy(filters.sort),
+      skip: (filters.page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.product.count({ where }),
+  ])
+
+  return { products, total, pageSize: PAGE_SIZE }
+})
+
+export const getParentCategories = cache(async (): Promise<CategoryItem[]> => {
+  return prisma.category.findMany({
+    where: { parentId: null },
+    select: { id: true, name: true, slug: true, icon: true },
+    orderBy: { name: "asc" },
+  })
+})
 
 export const getCategoryWithProducts = cache(async (
   slug: string,
