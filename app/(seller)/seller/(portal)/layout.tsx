@@ -15,7 +15,7 @@ export default async function PortalLayout({ children }: { children: React.React
 
   return (
     <div className="flex min-h-screen bg-bg-page">
-      <SellerSidebar shopName={shop.name} />
+      <SellerSidebar shopName={shop.name} userName={user.name} />
       <main className="flex-1 p-6 max-w-[1200px]">{children}</main>
     </div>
   )

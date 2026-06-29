@@ -8,7 +8,7 @@ export default async function AdminPortalLayout({ children }: { children: React.
 
   return (
     <div className="flex min-h-screen bg-bg-page">
-      <AdminSidebar />
+      <AdminSidebar userName={user.name} />
       <main className="flex-1 p-6 max-w-[1200px]">{children}</main>
     </div>
   )
