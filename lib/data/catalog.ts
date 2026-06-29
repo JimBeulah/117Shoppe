@@ -1,7 +1,7 @@
 import { cache } from "react"
 import { prisma } from "@/lib/db"
 import type { Prisma } from "@/lib/generated/prisma/client"
-import type { CatalogFilters, CatalogResult, CategoryItem, ProductCard, ProductDetail } from "@/types"
+import type { CatalogFilters, CatalogResult, CategoryItem, ProductCard, ProductDetail, ShopDetail } from "@/types"
 
 const PAGE_SIZE = 20
 
@@ -204,4 +204,54 @@ export const getProductBySlug = cache(async (slug: string): Promise<ProductDetai
     shop: product.shop,
     _count: product._count,
   }
+})
+
+export const getShopBySlug = cache(async (slug: string): Promise<ShopDetail | null> => {
+  const shop = await prisma.shop.findUnique({
+    where: { slug, status: "ACTIVE" },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      logo: true,
+      banner: true,
+      rating: true,
+      followersCount: true,
+      createdAt: true,
+      _count: { select: { products: { where: { isActive: true } } } },
+    },
+  })
+  return shop
+})
+
+export const getShopProducts = cache(async (
+  shopId: string,
+  filters: CatalogFilters
+): Promise<{ products: ProductCard[]; total: number; pageSize: number }> => {
+  const where: Prisma.ProductWhereInput = {
+    isActive: true,
+    shopId,
+    ...(filters.priceMin > 0 || filters.priceMax !== null
+      ? {
+          price: {
+            ...(filters.priceMin > 0 ? { gte: filters.priceMin } : {}),
+            ...(filters.priceMax !== null ? { lte: filters.priceMax } : {}),
+          },
+        }
+      : {}),
+    ...(filters.rating !== null ? { rating: { gte: filters.rating } } : {}),
+  }
+
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      include: { shop: { select: { name: true, slug: true } } },
+      orderBy: toOrderBy(filters.sort),
+      skip: (filters.page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.product.count({ where }),
+  ])
+
+  return { products, total, pageSize: PAGE_SIZE }
 })

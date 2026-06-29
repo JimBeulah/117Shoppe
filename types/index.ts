@@ -170,3 +170,17 @@ export interface ProductDetail {
   }
   _count: { reviews: number }
 }
+
+export interface ShopDetail {
+  id: string
+  name: string
+  slug: string
+  logo: string | null
+  banner: string | null
+  rating: number
+  followersCount: number
+  createdAt: Date
+  _count: {
+    products: number
+  }
+}
