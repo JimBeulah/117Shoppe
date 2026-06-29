@@ -1,5 +1,5 @@
-import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/db"
+import { getCurrentUser } from "@/lib/data/user"
 import type {
   AdminBannerRow,
   AdminCategoryRow,
@@ -15,8 +15,8 @@ import type {
 const PAGE_SIZE = 20
 
 async function assertAdmin() {
-  const { sessionClaims } = await auth()
-  if (sessionClaims?.metadata?.role !== "ADMIN") throw new Error("Unauthorized")
+  const user = await getCurrentUser()
+  if (!user || user.role !== "ADMIN") throw new Error("Unauthorized")
 }
 
 export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {

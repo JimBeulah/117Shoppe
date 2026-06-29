@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { getAdminFlashSales } from "@/lib/admin/queries"
 import { deleteFlashSale } from "@/lib/admin/actions"
+import ConfirmButton from "@/components/admin/ConfirmButton"
 
 export const metadata = { title: "Admin — Flash Sales" }
 
@@ -49,18 +50,16 @@ export default async function AdminFlashSalesPage() {
                     <div className="flex items-center justify-end gap-3">
                       <Link href={`/admin/flash-sales/${fs.id}`} className="text-xs text-brand-600 hover:underline">Edit</Link>
                       <form>
-                        <input type="hidden" name="fsId" value={fs.id} />
-                        <button
-                          type="submit"
+                        <ConfirmButton
+                          message="Delete this flash sale and all its items?"
+                          className="text-xs text-red-500 hover:underline"
                           formAction={async (fd: FormData) => {
                             "use server"
-                            await deleteFlashSale(fd.get("fsId") as string)
+                            await deleteFlashSale(fs.id)
                           }}
-                          className="text-xs text-red-500 hover:underline"
-                          onClick={(e) => { if (!confirm("Delete this flash sale and all its items?")) e.preventDefault() }}
                         >
                           Delete
-                        </button>
+                        </ConfirmButton>
                       </form>
                     </div>
                   </td>

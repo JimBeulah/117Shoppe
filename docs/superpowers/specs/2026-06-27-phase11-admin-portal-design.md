@@ -196,7 +196,7 @@ Table of all `Voucher` records.
 - Product picker: search/select products to add, set `salePrice` and `stock` allocation per product
 - Each selected product creates a `FlashSaleItem` record
 
-**Delete:** Deletes the `FlashSale` and cascades to all `FlashSaleItem` records.
+**Delete:** Server action deletes all `FlashSaleItem` records for the sale first, then deletes the `FlashSale` (schema has no cascade — must delete children manually).
 
 ---
 

@@ -20,13 +20,7 @@ export default clerkMiddleware(async (auth, req) => {
       return Response.redirect(new URL("/seller/onboarding", req.url))
     }
   }
-
-  if (isAdminRoute(req)) {
-    const { sessionClaims } = await auth()
-    if (sessionClaims?.metadata?.role !== "ADMIN") {
-      return Response.redirect(new URL("/", req.url))
-    }
-  }
+  // Admin role check is handled in the portal layout via DB lookup
 })
 
 export const config = {

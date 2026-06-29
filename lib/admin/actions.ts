@@ -1,12 +1,13 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { auth, clerkClient } from "@clerk/nextjs/server"
+import { clerkClient } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/db"
+import { getCurrentUser } from "@/lib/data/user"
 
 async function assertAdmin() {
-  const { sessionClaims } = await auth()
-  if (sessionClaims?.metadata?.role !== "ADMIN") throw new Error("Unauthorized")
+  const user = await getCurrentUser()
+  if (!user || user.role !== "ADMIN") throw new Error("Unauthorized")
 }
 
 // ─── Sellers ──────────────────────────────────────────────────────────────────

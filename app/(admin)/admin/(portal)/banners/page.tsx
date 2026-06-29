@@ -1,5 +1,6 @@
 import { getAdminBanners } from "@/lib/admin/queries"
 import { createBanner, toggleBanner, deleteBanner } from "@/lib/admin/actions"
+import ConfirmButton from "@/components/admin/ConfirmButton"
 
 export const metadata = { title: "Admin — Banners" }
 
@@ -54,18 +55,16 @@ export default async function AdminBannersPage() {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <form>
-                    <input type="hidden" name="bannerId" value={banner.id} />
-                    <button
-                      type="submit"
+                    <ConfirmButton
+                      message="Delete banner?"
+                      className="text-xs text-red-500 hover:underline"
                       formAction={async (fd: FormData) => {
                         "use server"
-                        await deleteBanner(fd.get("bannerId") as string)
+                        await deleteBanner(banner.id)
                       }}
-                      className="text-xs text-red-500 hover:underline"
-                      onClick={(e) => { if (!confirm("Delete banner?")) e.preventDefault() }}
                     >
                       Delete
-                    </button>
+                    </ConfirmButton>
                   </form>
                 </td>
               </tr>

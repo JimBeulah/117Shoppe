@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { getAdminCategories } from "@/lib/admin/queries"
 import { createCategory, updateCategory, deleteCategory } from "@/lib/admin/actions"
+import ConfirmButton from "@/components/admin/ConfirmButton"
 
 export const metadata = { title: "Admin — Categories" }
 
@@ -46,18 +47,16 @@ export default async function AdminCategoriesPage({
                       Edit
                     </Link>
                     <form>
-                      <input type="hidden" name="categoryId" value={cat.id} />
-                      <button
-                        type="submit"
+                      <ConfirmButton
+                        message="Delete this category?"
+                        className="text-xs text-red-500 hover:underline"
                         formAction={async (fd: FormData) => {
                           "use server"
-                          await deleteCategory(fd.get("categoryId") as string)
+                          await deleteCategory(cat.id)
                         }}
-                        onClick={(e) => { if (!confirm("Delete this category?")) e.preventDefault() }}
-                        className="text-xs text-red-500 hover:underline"
                       >
                         Delete
-                      </button>
+                      </ConfirmButton>
                     </form>
                   </div>
                 </td>
