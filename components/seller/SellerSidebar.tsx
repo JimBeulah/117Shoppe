@@ -9,6 +9,7 @@ const NAV = [
   { label: "All Products", href: "/seller/products" },
   { label: "Add Product", href: "/seller/products/new" },
   { label: "Orders", href: "/seller/orders" },
+  { label: "Shop Settings", href: "/seller/settings" },
 ]
 
 export default function SellerSidebar({ shopName, userName }: { shopName: string; userName: string }) {
