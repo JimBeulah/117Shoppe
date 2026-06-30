@@ -4,11 +4,11 @@ import type { Socket } from 'socket.io-client'
 let socket: Socket | null = null
 
 export function getSocket(token: string): Socket {
-  if (socket?.connected) return socket
-  if (socket) socket.disconnect()
+  if (socket) return socket
 
   socket = io(typeof window !== 'undefined' ? window.location.origin : '', {
     auth: { token },
+    transports: ['websocket'],
   })
   return socket
 }

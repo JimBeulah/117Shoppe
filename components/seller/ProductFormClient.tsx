@@ -75,7 +75,8 @@ export default function ProductFormClient({ categories, initial }: Props) {
 
   function handleParentChange(parentId: string) {
     setParentCategoryId(parentId)
-    setCategoryId("")
+    const newChildren = categories.filter((c) => c.parentId === parentId)
+    setCategoryId(newChildren.length > 0 ? "" : parentId)
   }
 
   function handleVariantToggle(checked: boolean) {

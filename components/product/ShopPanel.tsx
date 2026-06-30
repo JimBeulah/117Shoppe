@@ -38,7 +38,7 @@ export function ShopPanel({ shop }: ShopPanelProps) {
         >
           Visit Shop
         </Link>
-        <form action={async () => { await startConversation(shop.id) }}>
+        <form action={startConversation.bind(null, shop.id)}>
           <button
             type="submit"
             className="w-full px-3 py-1.5 bg-brand-600 text-white rounded text-xs font-medium hover:bg-brand-500 transition-colors"

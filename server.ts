@@ -2,7 +2,6 @@ import { createServer } from 'http'
 import { parse } from 'url'
 import next from 'next'
 import { Server } from 'socket.io'
-import { setupSocketServer } from '@/lib/socket/handlers'
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = process.env.HOSTNAME || 'localhost'
@@ -12,7 +11,10 @@ async function main() {
   const app = next({ dev, hostname, port })
   const handle = app.getRequestHandler()
 
+  // app.prepare() loads .env.local — must run before any module that reads env vars
   await app.prepare()
+
+  const { setupSocketServer } = await import('@/lib/socket/handlers')
 
   const httpServer = createServer(async (req, res) => {
     const parsedUrl = parse(req.url!, true)

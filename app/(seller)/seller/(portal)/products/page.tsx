@@ -5,6 +5,7 @@ import { getCurrentShop, getSellerProducts } from "@/lib/seller/queries"
 import { toggleProduct, deleteProduct } from "@/lib/seller/actions"
 import { formatPrice } from "@/lib/utils"
 import { SearchInput } from "@/components/ui/SearchInput"
+import ConfirmButton from "@/components/admin/ConfirmButton"
 
 export const metadata = { title: "My Products" }
 
@@ -132,20 +133,17 @@ export default async function ProductsPage({ searchParams }: Props) {
                       </Link>
                       <form>
                         <input type="hidden" name="productId" value={product.id} />
-                        <button
-                          type="submit"
+                        <ConfirmButton
+                          message="Delete this product? This cannot be undone."
                           formAction={async (formData: FormData) => {
                             "use server"
                             const id = formData.get("productId") as string
                             await deleteProduct(id)
                           }}
                           className="text-xs text-red-500 hover:underline cursor-pointer"
-                          onClick={(e) => {
-                            if (!confirm("Deactivate this product?")) e.preventDefault()
-                          }}
                         >
                           Delete
-                        </button>
+                        </ConfirmButton>
                       </form>
                     </div>
                   </td>
