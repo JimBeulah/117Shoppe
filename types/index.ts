@@ -184,3 +184,37 @@ export interface ShopDetail {
     products: number
   }
 }
+
+export interface ReviewWithUser {
+  id: string
+  rating: number
+  comment: string | null
+  createdAt: Date
+  user: { name: string }
+  reply: { comment: string } | null
+}
+
+export interface ShopReviewWithProduct {
+  id: string
+  rating: number
+  comment: string | null
+  createdAt: Date
+  user: { name: string }
+  product: { id: string; name: string; images: string[] }
+  reply: { comment: string } | null
+}
+
+export interface OrderWithItems {
+  id: string
+  status: string
+  total: number
+  createdAt: Date
+  shop: { name: string; slug: string }
+  items: {
+    id: string
+    quantity: number
+    price: number
+    product: { id: string; name: string; slug: string; images: string[] }
+    variant: { name: string } | null
+  }[]
+}
