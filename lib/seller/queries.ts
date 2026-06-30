@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
 import type { DashboardStats } from "@/types/seller"
+import type { ShopReviewWithProduct } from "@/types"
 
 export async function getCurrentShop() {
   const user = await getCurrentUser()
@@ -131,5 +132,21 @@ export async function getAllCategories() {
   return prisma.category.findMany({
     select: { id: true, name: true, parentId: true },
     orderBy: { name: "asc" },
+  })
+}
+
+export async function getShopReviews(shopId: string): Promise<ShopReviewWithProduct[]> {
+  return prisma.review.findMany({
+    where: { product: { shopId } },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      rating: true,
+      comment: true,
+      createdAt: true,
+      user: { select: { name: true } },
+      product: { select: { id: true, name: true, images: true } },
+      reply: { select: { comment: true } },
+    },
   })
 }

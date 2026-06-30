@@ -226,3 +226,27 @@ export async function cancelOrder(orderId: string): Promise<{ error?: string }> 
   revalidatePath("/seller/orders")
   return {}
 }
+
+// ─── Reviews ──────────────────────────────────────────────────────────────────
+
+export async function replyToReview(reviewId: string, comment: string): Promise<{ error?: string }> {
+  const shop = await getVerifiedShop()
+  if (!shop) return { error: "Unauthorized" }
+
+  const trimmed = comment.trim()
+  if (!trimmed) return { error: "Reply cannot be empty" }
+
+  const review = await prisma.review.findFirst({
+    where: { id: reviewId, product: { shopId: shop.id } },
+    select: { id: true, reply: { select: { id: true } } },
+  })
+  if (!review) return { error: "Review not found" }
+  if (review.reply) return { error: "Already replied to this review" }
+
+  await prisma.reviewReply.create({
+    data: { reviewId, shopId: shop.id, comment: trimmed },
+  })
+
+  revalidatePath("/seller/reviews")
+  return {}
+}
