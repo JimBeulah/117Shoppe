@@ -27,36 +27,41 @@ export async function submitReview(data: {
   })
   if (!orderItem) return { error: "You can only review products from delivered orders" }
 
-  const existing = await prisma.review.findFirst({
-    where: { userId: user.id, productId },
-  })
-  if (existing) return { error: "You have already reviewed this product" }
+  try {
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.review.findFirst({
+        where: { userId: user.id, productId },
+      })
+      if (existing) throw Object.assign(new Error("You have already reviewed this product"), { code: "DUPLICATE" })
 
-  await prisma.$transaction(async (tx) => {
-    await tx.review.create({
-      data: {
-        userId: user.id,
-        productId,
-        orderId,
-        rating,
-        comment: comment.trim() || null,
-        images: [],
-      },
+      await tx.review.create({
+        data: {
+          userId: user.id,
+          productId,
+          orderId,
+          rating,
+          comment: comment.trim() || null,
+          images: [],
+        },
+      })
+
+      const [avgResult, count] = await Promise.all([
+        tx.review.aggregate({ where: { productId }, _avg: { rating: true } }),
+        tx.review.count({ where: { productId } }),
+      ])
+
+      await tx.product.update({
+        where: { id: productId },
+        data: {
+          rating: avgResult._avg.rating ?? 0,
+          reviewCount: count,
+        },
+      })
     })
-
-    const [avgResult, count] = await Promise.all([
-      tx.review.aggregate({ where: { productId }, _avg: { rating: true } }),
-      tx.review.count({ where: { productId } }),
-    ])
-
-    await tx.product.update({
-      where: { id: productId },
-      data: {
-        rating: avgResult._avg.rating ?? 0,
-        reviewCount: count,
-      },
-    })
-  })
+  } catch (e: any) {
+    if (e?.code === "DUPLICATE") return { error: e.message }
+    throw e
+  }
 
   revalidatePath(`/product/${productSlug}`)
   revalidatePath("/account/orders")

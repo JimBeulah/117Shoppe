@@ -10,6 +10,7 @@ vi.mock("next/cache", () => ({
 
 const mockTx = {
   review: {
+    findFirst: vi.fn(),
     create: vi.fn(),
     aggregate: vi.fn().mockResolvedValue({ _avg: { rating: 4.5 } }),
     count: vi.fn().mockResolvedValue(2),
@@ -67,7 +68,7 @@ describe("submitReview", () => {
 
     const { prisma } = await import("@/lib/db")
     vi.mocked(prisma.orderItem.findFirst).mockResolvedValue({ id: "oi1" } as any)
-    vi.mocked(prisma.review.findFirst).mockResolvedValue({ id: "r1" } as any)
+    mockTx.review.findFirst.mockResolvedValue({ id: "r1" } as any)
 
     const { submitReview } = await import("@/lib/actions/reviews")
     const result = await submitReview({ productId: "p1", productSlug: "p-slug", orderId: "o1", rating: 4, comment: "" })
@@ -81,7 +82,7 @@ describe("submitReview", () => {
 
     const { prisma } = await import("@/lib/db")
     vi.mocked(prisma.orderItem.findFirst).mockResolvedValue({ id: "oi1" } as any)
-    vi.mocked(prisma.review.findFirst).mockResolvedValue(null)
+    mockTx.review.findFirst.mockResolvedValue(null)
 
     const { submitReview } = await import("@/lib/actions/reviews")
     const result = await submitReview({ productId: "p1", productSlug: "prod-slug", orderId: "o1", rating: 5, comment: "Great!" })
