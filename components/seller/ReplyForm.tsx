@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { replyToReview } from "@/lib/seller/actions"
 
 interface ReplyFormProps {
@@ -11,13 +12,18 @@ export function ReplyForm({ reviewId }: ReplyFormProps) {
   const [comment, setComment] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
 
   function handleSubmit() {
     if (!comment.trim()) return
     setError(null)
     startTransition(async () => {
       const result = await replyToReview(reviewId, comment)
-      if (result.error) setError(result.error)
+      if (result.error) {
+        setError(result.error)
+      } else {
+        router.refresh()
+      }
     })
   }
 
