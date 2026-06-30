@@ -1,5 +1,6 @@
 import Image from "next/image"
 import Link from "next/link"
+import { startConversation } from "@/lib/chat/actions"
 
 interface ShopPanelProps {
   shop: {
@@ -30,12 +31,22 @@ export function ShopPanel({ shop }: ShopPanelProps) {
           ★ {shop.rating.toFixed(1)} · {shop.followersCount.toLocaleString()} followers
         </p>
       </div>
-      <Link
-        href={`/shop/${shop.slug}`}
-        className="flex-shrink-0 px-3 py-1.5 border border-brand-600 text-brand-600 rounded text-xs font-medium hover:bg-brand-50 transition-colors"
-      >
-        Visit Shop
-      </Link>
+      <div className="flex flex-col gap-1.5 flex-shrink-0">
+        <Link
+          href={`/shop/${shop.slug}`}
+          className="px-3 py-1.5 border border-brand-600 text-brand-600 rounded text-xs font-medium hover:bg-brand-50 transition-colors text-center"
+        >
+          Visit Shop
+        </Link>
+        <form action={async () => { await startConversation(shop.id) }}>
+          <button
+            type="submit"
+            className="w-full px-3 py-1.5 bg-brand-600 text-white rounded text-xs font-medium hover:bg-brand-500 transition-colors"
+          >
+            Chat with Seller
+          </button>
+        </form>
+      </div>
     </div>
   )
 }
