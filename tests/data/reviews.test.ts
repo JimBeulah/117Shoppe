@@ -63,3 +63,29 @@ describe("getProductRatingStats", () => {
     expect(result).toEqual({ 1: 0, 2: 0, 3: 0, 4: 2, 5: 8 })
   })
 })
+
+describe("getUserReviewedProductIds", () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it("returns a Set of productIds the user has reviewed", async () => {
+    const { prisma } = await import("@/lib/db")
+    vi.mocked(prisma.review.findMany).mockResolvedValue([
+      { productId: "prod-1" },
+      { productId: "prod-2" },
+    ] as any)
+
+    const { getUserReviewedProductIds } = await import("@/lib/data/reviews")
+    const result = await getUserReviewedProductIds("user-1")
+
+    expect(prisma.review.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-1" },
+        select: { productId: true },
+      })
+    )
+    expect(result).toBeInstanceOf(Set)
+    expect(result.has("prod-1")).toBe(true)
+    expect(result.has("prod-2")).toBe(true)
+    expect(result.size).toBe(2)
+  })
+})
