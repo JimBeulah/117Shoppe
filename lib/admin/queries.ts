@@ -90,13 +90,21 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
 
 export async function getAdminShops(
   page: number,
-  statusFilter: string | null
+  statusFilter: string | null,
+  search?: string | null
 ): Promise<{ shops: AdminShopRow[]; total: number; pageSize: number }> {
   await assertAdmin()
   const VALID_SHOP_STATUSES = ["PENDING", "ACTIVE", "REJECTED"]
-  const where = statusFilter && VALID_SHOP_STATUSES.includes(statusFilter)
-    ? { status: statusFilter as "PENDING" | "ACTIVE" | "REJECTED" }
-    : {}
+  const where: any = {}
+  if (statusFilter && VALID_SHOP_STATUSES.includes(statusFilter)) {
+    where.status = statusFilter as "PENDING" | "ACTIVE" | "REJECTED"
+  }
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: "insensitive" } },
+      { owner: { email: { contains: search, mode: "insensitive" } } },
+    ]
+  }
   const [shops, total] = await Promise.all([
     prisma.shop.findMany({
       where,
@@ -118,17 +126,26 @@ export async function getAdminShops(
 }
 
 export async function getAdminUsers(
-  page: number
+  page: number,
+  search?: string | null
 ): Promise<{ users: AdminUserRow[]; total: number; pageSize: number }> {
   await assertAdmin()
+  const where: any = {}
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: "insensitive" } },
+      { email: { contains: search, mode: "insensitive" } },
+    ]
+  }
   const [users, total] = await Promise.all([
     prisma.user.findMany({
+      where,
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
       select: { id: true, name: true, email: true, role: true, clerkId: true, createdAt: true },
     }),
-    prisma.user.count(),
+    prisma.user.count({ where }),
   ])
   return { users, total, pageSize: PAGE_SIZE }
 }
@@ -136,13 +153,21 @@ export async function getAdminUsers(
 export async function getAdminOrders(
   page: number,
   statusFilter: string | null,
-  userId: string | null
+  userId: string | null,
+  search?: string | null
 ): Promise<{ orders: AdminOrderRow[]; total: number; pageSize: number }> {
   await assertAdmin()
   const VALID_ORDER_STATUSES = ["PENDING", "PAID", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"]
   const where: any = {}
   if (statusFilter && VALID_ORDER_STATUSES.includes(statusFilter)) where.status = statusFilter
   if (userId) where.userId = userId
+  if (search) {
+    where.OR = [
+      { id: { contains: search, mode: "insensitive" } },
+      { user: { name: { contains: search, mode: "insensitive" } } },
+      { shop: { name: { contains: search, mode: "insensitive" } } },
+    ]
+  }
 
   const [orders, total] = await Promise.all([
     prisma.order.findMany({
@@ -165,11 +190,21 @@ export async function getAdminOrders(
 }
 
 export async function getAdminProducts(
-  page: number
+  page: number,
+  search?: string | null
 ): Promise<{ products: AdminProductRow[]; total: number; pageSize: number }> {
   await assertAdmin()
+  const where: any = {}
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: "insensitive" } },
+      { shop: { name: { contains: search, mode: "insensitive" } } },
+      { category: { name: { contains: search, mode: "insensitive" } } },
+    ]
+  }
   const [products, total] = await Promise.all([
     prisma.product.findMany({
+      where,
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
@@ -184,7 +219,7 @@ export async function getAdminProducts(
         category: { select: { name: true } },
       },
     }),
-    prisma.product.count(),
+    prisma.product.count({ where }),
   ])
   return { products, total, pageSize: PAGE_SIZE }
 }
@@ -214,17 +249,26 @@ export async function getAdminBanners(): Promise<AdminBannerRow[]> {
 }
 
 export async function getAdminVouchers(
-  page: number
+  page: number,
+  search?: string | null
 ): Promise<{ vouchers: AdminVoucherRow[]; total: number; pageSize: number }> {
   await assertAdmin()
+  const where: any = {}
+  if (search) {
+    where.OR = [
+      { code: { contains: search, mode: "insensitive" } },
+      { title: { contains: search, mode: "insensitive" } },
+    ]
+  }
   const [vouchers, total] = await Promise.all([
     prisma.voucher.findMany({
+      where,
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
       select: { id: true, code: true, title: true, discountType: true, discountValue: true, minSpend: true, expiresAt: true, isActive: true },
     }),
-    prisma.voucher.count(),
+    prisma.voucher.count({ where }),
   ])
   return { vouchers, total, pageSize: PAGE_SIZE }
 }

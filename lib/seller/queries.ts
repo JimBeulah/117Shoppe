@@ -46,11 +46,15 @@ export async function getDashboardStats(shopId: string): Promise<DashboardStats>
   }
 }
 
-export async function getSellerProducts(shopId: string, page: number) {
+export async function getSellerProducts(shopId: string, page: number, search?: string | null) {
   const PAGE_SIZE = 20
+  const where: any = { shopId }
+  if (search) {
+    where.name = { contains: search, mode: "insensitive" }
+  }
   const [products, total] = await Promise.all([
     prisma.product.findMany({
-      where: { shopId },
+      where,
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
@@ -64,7 +68,7 @@ export async function getSellerProducts(shopId: string, page: number) {
         images: true,
       },
     }),
-    prisma.product.count({ where: { shopId } }),
+    prisma.product.count({ where }),
   ])
   return { products, total, pageSize: PAGE_SIZE }
 }
@@ -81,10 +85,18 @@ export async function getSellerProductForEdit(productId: string, shopId: string)
 export async function getSellerOrders(
   shopId: string,
   statusFilter: string | null,
-  page: number
+  page: number,
+  search?: string | null
 ) {
   const PAGE_SIZE = 20
-  const where = statusFilter ? { shopId, status: statusFilter as any } : { shopId }
+  const where: any = { shopId }
+  if (statusFilter) where.status = statusFilter as any
+  if (search) {
+    where.OR = [
+      { id: { contains: search, mode: "insensitive" } },
+      { user: { name: { contains: search, mode: "insensitive" } } },
+    ]
+  }
 
   const [orders, total] = await Promise.all([
     prisma.order.findMany({

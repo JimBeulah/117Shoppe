@@ -4,16 +4,18 @@ import { getCurrentUser } from "@/lib/data/user"
 import { getCurrentShop, getSellerProducts } from "@/lib/seller/queries"
 import { toggleProduct, deleteProduct } from "@/lib/seller/actions"
 import { formatPrice } from "@/lib/utils"
+import { SearchInput } from "@/components/ui/SearchInput"
 
 export const metadata = { title: "My Products" }
 
 interface Props {
-  searchParams: Promise<{ page?: string }>
+  searchParams: Promise<{ page?: string; search?: string }>
 }
 
 export default async function ProductsPage({ searchParams }: Props) {
-  const { page: pageStr } = await searchParams
+  const { page: pageStr, search } = await searchParams
   const page = Math.max(1, parseInt(pageStr ?? "1", 10))
+  const searchQuery = search ?? null
 
   const user = await getCurrentUser()
   if (!user) redirect("/sign-in")
@@ -21,29 +23,41 @@ export default async function ProductsPage({ searchParams }: Props) {
   const shop = await getCurrentShop()
   if (!shop) redirect("/seller/onboarding")
 
-  const { products, total, pageSize } = await getSellerProducts(shop.id, page)
+  const { products, total, pageSize } = await getSellerProducts(shop.id, page, searchQuery)
   const totalPages = Math.ceil(total / pageSize)
+
+  function buildHref(overrides: { page?: number }) {
+    const params = new URLSearchParams()
+    const p = overrides.page ?? page
+    const q = searchQuery
+    if (q) params.set("search", q)
+    if (p > 1) params.set("page", String(p))
+    return `/seller/products${params.toString() ? `?${params}` : ""}`
+  }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-xl font-bold text-text-primary">Products</h1>
-        <Link
-          href="/seller/products/new"
-          className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded transition-colors"
-        >
-          + Add Product
-        </Link>
+        <div className="flex items-center gap-3 flex-1 max-w-lg">
+          <SearchInput placeholder="Search your products..." />
+          <Link
+            href="/seller/products/new"
+            className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded transition-colors shrink-0"
+          >
+            + Add Product
+          </Link>
+        </div>
       </div>
 
       {products.length === 0 ? (
         <div className="bg-white rounded-lg border border-border-default p-12 text-center">
-          <p className="text-text-secondary text-sm">No products yet.</p>
+          <p className="text-text-secondary text-sm">No products found.</p>
           <Link
             href="/seller/products/new"
             className="mt-3 inline-block text-sm text-brand-600 hover:underline"
           >
-            Add your first product →
+            Add a new product →
           </Link>
         </div>
       ) : (
@@ -95,7 +109,7 @@ export default async function ProductsPage({ searchParams }: Props) {
                           const active = formData.get("isActive") === "true"
                           await toggleProduct(id, active)
                         }}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer ${
                           product.isActive ? "bg-brand-600" : "bg-gray-200"
                         }`}
                         title={product.isActive ? "Deactivate" : "Activate"}
@@ -125,7 +139,7 @@ export default async function ProductsPage({ searchParams }: Props) {
                             const id = formData.get("productId") as string
                             await deleteProduct(id)
                           }}
-                          className="text-xs text-red-500 hover:underline"
+                          className="text-xs text-red-500 hover:underline cursor-pointer"
                           onClick={(e) => {
                             if (!confirm("Deactivate this product?")) e.preventDefault()
                           }}
@@ -148,7 +162,7 @@ export default async function ProductsPage({ searchParams }: Props) {
               <div className="flex gap-2">
                 {page > 1 && (
                   <Link
-                    href={`/seller/products?page=${page - 1}`}
+                    href={buildHref({ page: page - 1 })}
                     className="text-xs px-3 py-1 rounded border border-border-default hover:bg-brand-50"
                   >
                     Previous
@@ -156,7 +170,7 @@ export default async function ProductsPage({ searchParams }: Props) {
                 )}
                 {page < totalPages && (
                   <Link
-                    href={`/seller/products?page=${page + 1}`}
+                    href={buildHref({ page: page + 1 })}
                     className="text-xs px-3 py-1 rounded border border-border-default hover:bg-brand-50"
                   >
                     Next

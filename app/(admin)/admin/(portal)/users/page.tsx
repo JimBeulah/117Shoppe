@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { getAdminUsers } from "@/lib/admin/queries"
 import { promoteToSeller, demoteToBuyer } from "@/lib/admin/actions"
+import { SearchInput } from "@/components/ui/SearchInput"
 
 export const metadata = { title: "Admin — Users" }
 
@@ -11,19 +12,32 @@ const ROLE_COLOR: Record<string, string> = {
 }
 
 interface Props {
-  searchParams: Promise<{ page?: string }>
+  searchParams: Promise<{ page?: string; search?: string }>
 }
 
 export default async function AdminUsersPage({ searchParams }: Props) {
-  const { page: pageStr } = await searchParams
+  const { page: pageStr, search } = await searchParams
   const page = Math.max(1, parseInt(pageStr ?? "1", 10))
+  const searchQuery = search ?? null
 
-  const { users, total, pageSize } = await getAdminUsers(page)
+  const { users, total, pageSize } = await getAdminUsers(page, searchQuery)
   const totalPages = Math.ceil(total / pageSize)
+
+  function buildHref(overrides: { page?: number }) {
+    const params = new URLSearchParams()
+    const p = overrides.page ?? page
+    const q = searchQuery
+    if (q) params.set("search", q)
+    if (p > 1) params.set("page", String(p))
+    return `/admin/users${params.toString() ? `?${params}` : ""}`
+  }
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold text-text-primary">Users</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-xl font-bold text-text-primary">Users</h1>
+        <SearchInput placeholder="Search users by name or email..." />
+      </div>
 
       <div className="bg-white rounded-lg border border-border-default overflow-hidden">
         <table className="w-full text-sm">
@@ -74,7 +88,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                               fd.get("clerkId") as string
                             )
                           }}
-                          className="text-xs px-2 py-1 border border-brand-600 text-brand-600 rounded hover:bg-brand-50"
+                          className="text-xs px-2 py-1 border border-brand-600 text-brand-600 rounded hover:bg-brand-50 cursor-pointer"
                         >
                           Promote to Seller
                         </button>
@@ -93,7 +107,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                               fd.get("clerkId") as string
                             )
                           }}
-                          className="text-xs px-2 py-1 border border-red-500 text-red-500 rounded hover:bg-red-50"
+                          className="text-xs px-2 py-1 border border-red-500 text-red-500 rounded hover:bg-red-50 cursor-pointer"
                         >
                           Demote to Buyer
                         </button>
@@ -114,7 +128,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
             <div className="flex gap-2">
               {page > 1 && (
                 <Link
-                  href={`/admin/users?page=${page - 1}`}
+                  href={buildHref({ page: page - 1 })}
                   className="text-xs px-3 py-1 rounded border border-border-default hover:bg-brand-50"
                 >
                   Previous
@@ -122,7 +136,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
               )}
               {page < totalPages && (
                 <Link
-                  href={`/admin/users?page=${page + 1}`}
+                  href={buildHref({ page: page + 1 })}
                   className="text-xs px-3 py-1 rounded border border-border-default hover:bg-brand-50"
                 >
                   Next

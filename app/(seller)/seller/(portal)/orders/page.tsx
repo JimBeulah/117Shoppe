@@ -3,6 +3,7 @@ import Link from "next/link"
 import { getCurrentUser } from "@/lib/data/user"
 import { getCurrentShop, getSellerOrders } from "@/lib/seller/queries"
 import { formatPrice } from "@/lib/utils"
+import { SearchInput } from "@/components/ui/SearchInput"
 
 export const metadata = { title: "Orders" }
 
@@ -23,13 +24,14 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 interface Props {
-  searchParams: Promise<{ status?: string; page?: string }>
+  searchParams: Promise<{ status?: string; page?: string; search?: string }>
 }
 
 export default async function OrdersPage({ searchParams }: Props) {
-  const { status: statusParam, page: pageStr } = await searchParams
+  const { status: statusParam, page: pageStr, search } = await searchParams
   const statusFilter = statusParam ?? null
   const page = Math.max(1, parseInt(pageStr ?? "1", 10))
+  const searchQuery = search ?? null
 
   const user = await getCurrentUser()
   if (!user) redirect("/sign-in")
@@ -37,17 +39,31 @@ export default async function OrdersPage({ searchParams }: Props) {
   const shop = await getCurrentShop()
   if (!shop) redirect("/seller/onboarding")
 
-  const { orders, total, pageSize } = await getSellerOrders(shop.id, statusFilter, page)
+  const { orders, total, pageSize } = await getSellerOrders(shop.id, statusFilter, page, searchQuery)
   const totalPages = Math.ceil(total / pageSize)
+
+  function buildHref(overrides: { status?: string | null; page?: number }) {
+    const params = new URLSearchParams()
+    const s = "status" in overrides ? overrides.status : statusFilter
+    const p = overrides.page ?? page
+    const q = searchQuery
+    if (s) params.set("status", s)
+    if (q) params.set("search", q)
+    if (p > 1) params.set("page", String(p))
+    return `/seller/orders${params.toString() ? `?${params}` : ""}`
+  }
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold text-text-primary">Orders</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-xl font-bold text-text-primary">Orders</h1>
+        <SearchInput placeholder="Search orders by ID or buyer name..." />
+      </div>
 
       {/* Status Tabs */}
       <div className="flex gap-1 border-b border-border-default">
         {TABS.map((tab) => {
-          const href = tab.value ? `/seller/orders?status=${tab.value}` : "/seller/orders"
+          const href = buildHref({ status: tab.value, page: 1 })
           const active = statusFilter === tab.value
           return (
             <Link
@@ -141,7 +157,7 @@ export default async function OrdersPage({ searchParams }: Props) {
               <div className="flex gap-2">
                 {page > 1 && (
                   <Link
-                    href={`/seller/orders?${statusFilter ? `status=${statusFilter}&` : ""}page=${page - 1}`}
+                    href={buildHref({ page: page - 1 })}
                     className="text-xs px-3 py-1 rounded border border-border-default hover:bg-brand-50"
                   >
                     Previous
@@ -149,7 +165,7 @@ export default async function OrdersPage({ searchParams }: Props) {
                 )}
                 {page < totalPages && (
                   <Link
-                    href={`/seller/orders?${statusFilter ? `status=${statusFilter}&` : ""}page=${page + 1}`}
+                    href={buildHref({ page: page + 1 })}
                     className="text-xs px-3 py-1 rounded border border-border-default hover:bg-brand-50"
                   >
                     Next

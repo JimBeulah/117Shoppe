@@ -2,6 +2,7 @@ import Link from "next/link"
 import { getAdminShops } from "@/lib/admin/queries"
 import { approveShop, rejectShop } from "@/lib/admin/actions"
 import ShopStatusBadge from "@/components/admin/ShopStatusBadge"
+import { SearchInput } from "@/components/ui/SearchInput"
 
 export const metadata = { title: "Admin — Sellers" }
 
@@ -13,24 +14,39 @@ const STATUS_TABS = [
 ]
 
 interface Props {
-  searchParams: Promise<{ page?: string; status?: string }>
+  searchParams: Promise<{ page?: string; status?: string; search?: string }>
 }
 
 export default async function AdminSellersPage({ searchParams }: Props) {
-  const { page: pageStr, status: statusParam } = await searchParams
+  const { page: pageStr, status: statusParam, search } = await searchParams
   const page = Math.max(1, parseInt(pageStr ?? "1", 10))
   const statusFilter = statusParam ?? null
+  const searchQuery = search ?? null
 
-  const { shops, total, pageSize } = await getAdminShops(page, statusFilter)
+  const { shops, total, pageSize } = await getAdminShops(page, statusFilter, searchQuery)
   const totalPages = Math.ceil(total / pageSize)
+
+  function buildHref(overrides: { status?: string | null; page?: number }) {
+    const params = new URLSearchParams()
+    const s = "status" in overrides ? overrides.status : statusFilter
+    const p = overrides.page ?? page
+    const q = searchQuery
+    if (s) params.set("status", s)
+    if (q) params.set("search", q)
+    if (p > 1) params.set("page", String(p))
+    return `/admin/sellers${params.toString() ? `?${params}` : ""}`
+  }
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold text-text-primary">Sellers</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-xl font-bold text-text-primary">Sellers</h1>
+        <SearchInput placeholder="Search shops by name or email..." />
+      </div>
 
       <div className="flex gap-1 border-b border-border-default">
         {STATUS_TABS.map((tab) => {
-          const href = tab.value ? `/admin/sellers?status=${tab.value}` : "/admin/sellers"
+          const href = buildHref({ status: tab.value, page: 1 })
           const active = statusFilter === tab.value
           return (
             <Link
@@ -87,7 +103,7 @@ export default async function AdminSellersPage({ searchParams }: Props) {
                               "use server"
                               await approveShop(fd.get("shopId") as string)
                             }}
-                            className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                            className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 cursor-pointer"
                           >
                             Approve
                           </button>
@@ -107,7 +123,7 @@ export default async function AdminSellersPage({ searchParams }: Props) {
                               "use server"
                               await rejectShop(fd.get("shopId") as string, fd.get("reason") as string)
                             }}
-                            className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                            className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 cursor-pointer"
                           >
                             Reject
                           </button>
@@ -128,7 +144,7 @@ export default async function AdminSellersPage({ searchParams }: Props) {
               <div className="flex gap-2">
                 {page > 1 && (
                   <Link
-                    href={`/admin/sellers?${statusFilter ? `status=${statusFilter}&` : ""}page=${page - 1}`}
+                    href={buildHref({ page: page - 1 })}
                     className="text-xs px-3 py-1 rounded border border-border-default hover:bg-brand-50"
                   >
                     Previous
@@ -136,7 +152,7 @@ export default async function AdminSellersPage({ searchParams }: Props) {
                 )}
                 {page < totalPages && (
                   <Link
-                    href={`/admin/sellers?${statusFilter ? `status=${statusFilter}&` : ""}page=${page + 1}`}
+                    href={buildHref({ page: page + 1 })}
                     className="text-xs px-3 py-1 rounded border border-border-default hover:bg-brand-50"
                   >
                     Next

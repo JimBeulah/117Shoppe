@@ -5,5 +5,5 @@ export const metadata = {
 }
 
 export default function SignInPage() {
-  return <SignIn fallbackRedirectUrl="/auth-redirect" />
+  return <SignIn forceRedirectUrl="/auth-redirect" />
 }

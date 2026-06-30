@@ -2,21 +2,23 @@ import Link from "next/link"
 import { getAdminOrders } from "@/lib/admin/queries"
 import OrderStatusBadge from "@/components/admin/OrderStatusBadge"
 import { formatPrice } from "@/lib/utils"
+import { SearchInput } from "@/components/ui/SearchInput"
 
 export const metadata = { title: "Admin — Orders" }
 
 const ORDER_STATUSES = ["PENDING", "PAID", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"]
 
 interface Props {
-  searchParams: Promise<{ page?: string; status?: string; userId?: string }>
+  searchParams: Promise<{ page?: string; status?: string; userId?: string; search?: string }>
 }
 
 export default async function AdminOrdersPage({ searchParams }: Props) {
-  const { page: pageStr, status: statusParam, userId } = await searchParams
+  const { page: pageStr, status: statusParam, userId, search } = await searchParams
   const page = Math.max(1, parseInt(pageStr ?? "1", 10))
   const statusFilter = statusParam ?? null
+  const searchQuery = search ?? null
 
-  const { orders, total, pageSize } = await getAdminOrders(page, statusFilter, userId ?? null)
+  const { orders, total, pageSize } = await getAdminOrders(page, statusFilter, userId ?? null, searchQuery)
   const totalPages = Math.ceil(total / pageSize)
 
   function buildHref(overrides: { status?: string | null; userId?: string | null; page?: number }) {
@@ -24,20 +26,25 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
     const s = "status" in overrides ? overrides.status : statusFilter
     const u = "userId" in overrides ? overrides.userId : (userId ?? null)
     const p = overrides.page ?? page
+    const q = searchQuery
     if (s) params.set("status", s)
     if (u) params.set("userId", u)
+    if (q) params.set("search", q)
     if (p > 1) params.set("page", String(p))
     return `/admin/orders${params.toString() ? `?${params}` : ""}`
   }
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold text-text-primary">Orders</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-xl font-bold text-text-primary">Orders</h1>
+        <SearchInput placeholder="Search orders by ID, buyer, or shop..." />
+      </div>
 
       {/* Status filter pills */}
       <div className="flex gap-1 flex-wrap items-center">
         <Link
-          href={buildHref({ status: null })}
+          href={buildHref({ status: null, page: 1 })}
           className={`text-xs px-3 py-1 rounded border ${
             !statusFilter
               ? "bg-brand-600 text-white border-brand-600"
@@ -49,7 +56,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
         {ORDER_STATUSES.map((s) => (
           <Link
             key={s}
-            href={buildHref({ status: s })}
+            href={buildHref({ status: s, page: 1 })}
             className={`text-xs px-3 py-1 rounded border ${
               statusFilter === s
                 ? "bg-brand-600 text-white border-brand-600"
@@ -62,7 +69,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
         <span className="ml-2 text-xs text-text-secondary">{total} orders</span>
         {userId && (
           <Link
-            href={buildHref({ userId: null })}
+            href={buildHref({ userId: null, page: 1 })}
             className="ml-2 text-xs text-brand-600 hover:underline"
           >
             Clear user filter ×

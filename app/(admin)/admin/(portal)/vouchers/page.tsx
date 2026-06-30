@@ -2,23 +2,37 @@ import Link from "next/link"
 import { getAdminVouchers } from "@/lib/admin/queries"
 import { createVoucher, deactivateVoucher } from "@/lib/admin/actions"
 import { formatPrice } from "@/lib/utils"
+import { SearchInput } from "@/components/ui/SearchInput"
 
 export const metadata = { title: "Admin — Vouchers" }
 
 interface Props {
-  searchParams: Promise<{ page?: string }>
+  searchParams: Promise<{ page?: string; search?: string }>
 }
 
 export default async function AdminVouchersPage({ searchParams }: Props) {
-  const { page: pageStr } = await searchParams
+  const { page: pageStr, search } = await searchParams
   const page = Math.max(1, parseInt(pageStr ?? "1", 10))
+  const searchQuery = search ?? null
 
-  const { vouchers, total, pageSize } = await getAdminVouchers(page)
+  const { vouchers, total, pageSize } = await getAdminVouchers(page, searchQuery)
   const totalPages = Math.ceil(total / pageSize)
+
+  function buildHref(overrides: { page?: number }) {
+    const params = new URLSearchParams()
+    const p = overrides.page ?? page
+    const q = searchQuery
+    if (q) params.set("search", q)
+    if (p > 1) params.set("page", String(p))
+    return `/admin/vouchers${params.toString() ? `?${params}` : ""}`
+  }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold text-text-primary">Vouchers</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-xl font-bold text-text-primary">Vouchers</h1>
+        <SearchInput placeholder="Search vouchers by code or title..." />
+      </div>
 
       <div className="bg-white rounded-lg border border-border-default overflow-hidden">
         <table className="w-full text-sm">
@@ -58,7 +72,7 @@ export default async function AdminVouchersPage({ searchParams }: Props) {
                           "use server"
                           await deactivateVoucher(fd.get("voucherId") as string)
                         }}
-                        className="text-xs text-red-500 hover:underline"
+                        className="text-xs text-red-500 hover:underline cursor-pointer"
                       >
                         Deactivate
                       </button>
@@ -77,8 +91,8 @@ export default async function AdminVouchersPage({ searchParams }: Props) {
           <div className="flex items-center justify-between px-4 py-3 border-t border-border-default">
             <p className="text-xs text-text-secondary">{(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}</p>
             <div className="flex gap-2">
-              {page > 1 && <Link href={`/admin/vouchers?page=${page - 1}`} className="text-xs px-3 py-1 rounded border border-border-default hover:bg-brand-50">Previous</Link>}
-              {page < totalPages && <Link href={`/admin/vouchers?page=${page + 1}`} className="text-xs px-3 py-1 rounded border border-border-default hover:bg-brand-50">Next</Link>}
+              {page > 1 && <Link href={buildHref({ page: page - 1 })} className="text-xs px-3 py-1 rounded border border-border-default hover:bg-brand-50">Previous</Link>}
+              {page < totalPages && <Link href={buildHref({ page: page + 1 })} className="text-xs px-3 py-1 rounded border border-border-default hover:bg-brand-50">Next</Link>}
             </div>
           </div>
         )}
