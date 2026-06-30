@@ -5,6 +5,7 @@ import { Breadcrumb } from "@/components/catalog/Breadcrumb"
 import { ImageGallery } from "@/components/product/ImageGallery"
 import { ProductInteractivePanel } from "@/components/product/ProductInteractivePanel"
 import { ShopPanel } from "@/components/product/ShopPanel"
+import { ReviewsSection } from "@/components/product/ReviewsSection"
 import { formatSold } from "@/lib/utils"
 
 export const revalidate = 60
@@ -90,6 +91,12 @@ export default async function ProductPage({ params }: Props) {
                 {product.description}
               </p>
             </div>
+
+            <ReviewsSection
+              productId={product.id}
+              productRating={product.rating}
+              productReviewCount={product.reviewCount}
+            />
           </div>
         </div>
       </div>
