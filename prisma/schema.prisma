@@ -56,6 +56,7 @@ model User {
   email        String   @unique
   passwordHash String?
   role         Role     @default(BUYER)
+  isBanned     Boolean  @default(false)
   avatar       String?
   coins        Int      @default(0)
   createdAt    DateTime @default(now())

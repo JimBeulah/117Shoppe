@@ -1,8 +1,11 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { getAdminOrderDetail } from "@/lib/admin/queries"
+import { updateOrderStatus } from "@/lib/admin/actions"
 import OrderStatusBadge from "@/components/admin/OrderStatusBadge"
 import { formatPrice } from "@/lib/utils"
+
+const ORDER_STATUSES = ["PENDING", "PAID", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"] as const
 
 interface Props {
   params: Promise<{ id: string }>
@@ -36,8 +39,33 @@ export default async function AdminOrderDetailPage({ params }: Props) {
             <p className="text-xs text-text-secondary">Shop</p>
             <p className="text-sm font-medium text-text-primary">{order.shop.name}</p>
           </div>
-          <div>
+          <div className="flex flex-col items-end gap-2">
             <OrderStatusBadge status={order.status} />
+            <form className="flex items-center gap-2">
+              <input type="hidden" name="orderId" value={order.id} />
+              <select
+                name="status"
+                defaultValue={order.status}
+                className="text-xs border border-border-default rounded px-2 py-1 bg-white text-text-primary"
+              >
+                {ORDER_STATUSES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                formAction={async (fd: FormData) => {
+                  "use server"
+                  await updateOrderStatus(
+                    fd.get("orderId") as string,
+                    fd.get("status") as typeof ORDER_STATUSES[number]
+                  )
+                }}
+                className="text-xs px-2 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded cursor-pointer"
+              >
+                Update
+              </button>
+            </form>
           </div>
         </div>
         <hr className="border-border-default" />

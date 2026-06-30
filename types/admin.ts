@@ -37,6 +37,7 @@ export interface AdminUserRow {
   name: string
   email: string
   role: string
+  isBanned: boolean
   clerkId: string
   createdAt: Date
 }
@@ -88,6 +89,8 @@ export interface AdminVoucherRow {
   discountType: string
   discountValue: number
   minSpend: number
+  maxDiscount: number | null
+  usageLimit: number | null
   expiresAt: Date
   isActive: boolean
 }

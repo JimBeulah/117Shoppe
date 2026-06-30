@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { getAdminUsers } from "@/lib/admin/queries"
-import { promoteToSeller, demoteToBuyer } from "@/lib/admin/actions"
+import { promoteToSeller, demoteToBuyer, banUser, unbanUser } from "@/lib/admin/actions"
 import { SearchInput } from "@/components/ui/SearchInput"
 
 export const metadata = { title: "Admin — Users" }
@@ -52,8 +52,11 @@ export default async function AdminUsersPage({ searchParams }: Props) {
           </thead>
           <tbody className="divide-y divide-border-default">
             {users.map((user) => (
-              <tr key={user.id} className="hover:bg-brand-50 transition-colors">
-                <td className="px-4 py-3 font-medium text-text-primary">{user.name}</td>
+              <tr key={user.id} className={`hover:bg-brand-50 transition-colors ${user.isBanned ? "opacity-60" : ""}`}>
+                <td className="px-4 py-3 font-medium text-text-primary">
+                  {user.name}
+                  {user.isBanned && <span className="ml-2 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">Banned</span>}
+                </td>
                 <td className="px-4 py-3 text-text-secondary">{user.email}</td>
                 <td className="px-4 py-3">
                   <span
@@ -75,7 +78,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                     >
                       Orders
                     </Link>
-                    {user.role === "BUYER" && (
+                    {user.role === "BUYER" && !user.isBanned && (
                       <form>
                         <input type="hidden" name="userId" value={user.id} />
                         <input type="hidden" name="clerkId" value={user.clerkId} />
@@ -94,7 +97,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                         </button>
                       </form>
                     )}
-                    {user.role === "SELLER" && (
+                    {user.role === "SELLER" && !user.isBanned && (
                       <form>
                         <input type="hidden" name="userId" value={user.id} />
                         <input type="hidden" name="clerkId" value={user.clerkId} />
@@ -110,6 +113,26 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                           className="text-xs px-2 py-1 border border-red-500 text-red-500 rounded hover:bg-red-50 cursor-pointer"
                         >
                           Demote to Buyer
+                        </button>
+                      </form>
+                    )}
+                    {user.role !== "ADMIN" && (
+                      <form>
+                        <input type="hidden" name="userId" value={user.id} />
+                        <input type="hidden" name="clerkId" value={user.clerkId} />
+                        <button
+                          type="submit"
+                          formAction={async (fd: FormData) => {
+                            "use server"
+                            if (user.isBanned) {
+                              await unbanUser(fd.get("userId") as string, fd.get("clerkId") as string)
+                            } else {
+                              await banUser(fd.get("userId") as string, fd.get("clerkId") as string)
+                            }
+                          }}
+                          className={`text-xs px-2 py-1 border rounded cursor-pointer ${user.isBanned ? "border-green-500 text-green-600 hover:bg-green-50" : "border-red-400 text-red-500 hover:bg-red-50"}`}
+                        >
+                          {user.isBanned ? "Unban" : "Ban"}
                         </button>
                       </form>
                     )}

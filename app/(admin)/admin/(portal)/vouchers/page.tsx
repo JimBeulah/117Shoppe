@@ -1,22 +1,23 @@
 import Link from "next/link"
 import { getAdminVouchers } from "@/lib/admin/queries"
-import { createVoucher, deactivateVoucher } from "@/lib/admin/actions"
+import { createVoucher, deactivateVoucher, updateVoucher } from "@/lib/admin/actions"
 import { formatPrice } from "@/lib/utils"
 import { SearchInput } from "@/components/ui/SearchInput"
 
 export const metadata = { title: "Admin — Vouchers" }
 
 interface Props {
-  searchParams: Promise<{ page?: string; search?: string }>
+  searchParams: Promise<{ page?: string; search?: string; edit?: string }>
 }
 
 export default async function AdminVouchersPage({ searchParams }: Props) {
-  const { page: pageStr, search } = await searchParams
+  const { page: pageStr, search, edit } = await searchParams
   const page = Math.max(1, parseInt(pageStr ?? "1", 10))
   const searchQuery = search ?? null
 
   const { vouchers, total, pageSize } = await getAdminVouchers(page, searchQuery)
   const totalPages = Math.ceil(total / pageSize)
+  const editing = edit ? vouchers.find((v) => v.id === edit) : null
 
   function buildHref(overrides: { page?: number }) {
     const params = new URLSearchParams()
@@ -49,7 +50,7 @@ export default async function AdminVouchersPage({ searchParams }: Props) {
           </thead>
           <tbody className="divide-y divide-border-default">
             {vouchers.map((v) => (
-              <tr key={v.id} className="hover:bg-brand-50 transition-colors">
+              <tr key={v.id} className={`hover:bg-brand-50 transition-colors ${editing?.id === v.id ? "bg-brand-50" : ""}`}>
                 <td className="px-4 py-3 font-mono text-xs font-semibold text-text-primary">{v.code}</td>
                 <td className="px-4 py-3 text-text-primary">{v.title}</td>
                 <td className="px-4 py-3 text-text-secondary">
@@ -63,21 +64,29 @@ export default async function AdminVouchersPage({ searchParams }: Props) {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  {v.isActive && (
-                    <form>
-                      <input type="hidden" name="voucherId" value={v.id} />
-                      <button
-                        type="submit"
-                        formAction={async (fd: FormData) => {
-                          "use server"
-                          await deactivateVoucher(fd.get("voucherId") as string)
-                        }}
-                        className="text-xs text-red-500 hover:underline cursor-pointer"
-                      >
-                        Deactivate
-                      </button>
-                    </form>
-                  )}
+                  <div className="flex items-center justify-end gap-3">
+                    <Link
+                      href={editing?.id === v.id ? buildHref({}) : `/admin/vouchers?edit=${v.id}${searchQuery ? `&search=${searchQuery}` : ""}${page > 1 ? `&page=${page}` : ""}`}
+                      className="text-xs text-brand-600 hover:underline"
+                    >
+                      {editing?.id === v.id ? "Cancel" : "Edit"}
+                    </Link>
+                    {v.isActive && (
+                      <form>
+                        <input type="hidden" name="voucherId" value={v.id} />
+                        <button
+                          type="submit"
+                          formAction={async (fd: FormData) => {
+                            "use server"
+                            await deactivateVoucher(fd.get("voucherId") as string)
+                          }}
+                          className="text-xs text-red-500 hover:underline cursor-pointer"
+                        >
+                          Deactivate
+                        </button>
+                      </form>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -98,71 +107,148 @@ export default async function AdminVouchersPage({ searchParams }: Props) {
         )}
       </div>
 
+      {/* Edit Form */}
+      {editing && (
+        <div className="bg-white rounded-lg border border-brand-300 p-5">
+          <h2 className="font-semibold text-sm text-text-primary mb-1">Edit Voucher — <span className="font-mono">{editing.code}</span></h2>
+          <p className="text-xs text-text-secondary mb-4">Code cannot be changed after creation.</p>
+          <form className="grid grid-cols-2 gap-3">
+            <input type="hidden" name="voucherId" value={editing.id} />
+            <div className="col-span-2">
+              <label className="text-xs text-text-secondary block mb-1">Title *</label>
+              <input name="title" required defaultValue={editing.title} className="w-full text-sm border border-border-default rounded px-3 py-2" />
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Discount Type *</label>
+              <select name="discountType" defaultValue={editing.discountType} className="w-full text-sm border border-border-default rounded px-3 py-2 bg-white">
+                <option value="PERCENT">Percent (%)</option>
+                <option value="FIXED">Fixed (₱)</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Discount Value *</label>
+              <input name="discountValue" type="number" step="0.01" required defaultValue={editing.discountValue} className="w-full text-sm border border-border-default rounded px-3 py-2" />
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Min Spend</label>
+              <input name="minSpend" type="number" step="0.01" defaultValue={editing.minSpend} className="w-full text-sm border border-border-default rounded px-3 py-2" />
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Max Discount (optional)</label>
+              <input name="maxDiscount" type="number" step="0.01" defaultValue={editing.maxDiscount ?? ""} className="w-full text-sm border border-border-default rounded px-3 py-2" />
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Expires At *</label>
+              <input
+                name="expiresAt"
+                type="datetime-local"
+                required
+                defaultValue={new Date(editing.expiresAt).toISOString().slice(0, 16)}
+                className="w-full text-sm border border-border-default rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Usage Limit (optional)</label>
+              <input name="usageLimit" type="number" defaultValue={editing.usageLimit ?? ""} className="w-full text-sm border border-border-default rounded px-3 py-2" />
+            </div>
+            <div className="col-span-2 flex items-center gap-4">
+              <label className="flex items-center gap-2 text-sm text-text-primary cursor-pointer">
+                <input name="isActive" type="checkbox" defaultChecked={editing.isActive} className="rounded" />
+                Active
+              </label>
+              <button
+                type="submit"
+                formAction={async (fd: FormData) => {
+                  "use server"
+                  const maxDiscount = fd.get("maxDiscount") as string
+                  const usageLimit = fd.get("usageLimit") as string
+                  await updateVoucher(fd.get("voucherId") as string, {
+                    title: fd.get("title") as string,
+                    discountType: fd.get("discountType") as "PERCENT" | "FIXED",
+                    discountValue: parseFloat(fd.get("discountValue") as string),
+                    minSpend: parseFloat(fd.get("minSpend") as string) || 0,
+                    maxDiscount: maxDiscount ? parseFloat(maxDiscount) : null,
+                    expiresAt: new Date(fd.get("expiresAt") as string),
+                    usageLimit: usageLimit ? parseInt(usageLimit, 10) : null,
+                    isActive: fd.get("isActive") === "on",
+                  })
+                }}
+                className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded"
+              >
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Create Form */}
-      <div className="bg-white rounded-lg border border-border-default p-5">
-        <h2 className="font-semibold text-sm text-text-primary mb-4">Create Voucher</h2>
-        <form className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-text-secondary block mb-1">Code *</label>
-            <input name="code" required className="w-full text-sm border border-border-default rounded px-3 py-2 uppercase" />
-          </div>
-          <div>
-            <label className="text-xs text-text-secondary block mb-1">Title *</label>
-            <input name="title" required className="w-full text-sm border border-border-default rounded px-3 py-2" />
-          </div>
-          <div>
-            <label className="text-xs text-text-secondary block mb-1">Discount Type *</label>
-            <select name="discountType" className="w-full text-sm border border-border-default rounded px-3 py-2 bg-white">
-              <option value="PERCENT">Percent (%)</option>
-              <option value="FIXED">Fixed (₱)</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-text-secondary block mb-1">Discount Value *</label>
-            <input name="discountValue" type="number" step="0.01" required className="w-full text-sm border border-border-default rounded px-3 py-2" />
-          </div>
-          <div>
-            <label className="text-xs text-text-secondary block mb-1">Min Spend</label>
-            <input name="minSpend" type="number" step="0.01" defaultValue="0" className="w-full text-sm border border-border-default rounded px-3 py-2" />
-          </div>
-          <div>
-            <label className="text-xs text-text-secondary block mb-1">Max Discount (optional)</label>
-            <input name="maxDiscount" type="number" step="0.01" className="w-full text-sm border border-border-default rounded px-3 py-2" />
-          </div>
-          <div>
-            <label className="text-xs text-text-secondary block mb-1">Expires At *</label>
-            <input name="expiresAt" type="datetime-local" required className="w-full text-sm border border-border-default rounded px-3 py-2" />
-          </div>
-          <div>
-            <label className="text-xs text-text-secondary block mb-1">Usage Limit (optional)</label>
-            <input name="usageLimit" type="number" className="w-full text-sm border border-border-default rounded px-3 py-2" />
-          </div>
-          <div className="col-span-2">
-            <button
-              type="submit"
-              formAction={async (fd: FormData) => {
-                "use server"
-                const maxDiscount = fd.get("maxDiscount") as string
-                const usageLimit = fd.get("usageLimit") as string
-                await createVoucher({
-                  code: (fd.get("code") as string).toUpperCase().trim(),
-                  title: fd.get("title") as string,
-                  discountType: fd.get("discountType") as "PERCENT" | "FIXED",
-                  discountValue: parseFloat(fd.get("discountValue") as string),
-                  minSpend: parseFloat(fd.get("minSpend") as string) || 0,
-                  maxDiscount: maxDiscount ? parseFloat(maxDiscount) : null,
-                  expiresAt: new Date(fd.get("expiresAt") as string),
-                  usageLimit: usageLimit ? parseInt(usageLimit, 10) : null,
-                  isActive: true,
-                })
-              }}
-              className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded"
-            >
-              Create Voucher
-            </button>
-          </div>
-        </form>
-      </div>
+      {!editing && (
+        <div className="bg-white rounded-lg border border-border-default p-5">
+          <h2 className="font-semibold text-sm text-text-primary mb-4">Create Voucher</h2>
+          <form className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Code *</label>
+              <input name="code" required className="w-full text-sm border border-border-default rounded px-3 py-2 uppercase" />
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Title *</label>
+              <input name="title" required className="w-full text-sm border border-border-default rounded px-3 py-2" />
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Discount Type *</label>
+              <select name="discountType" className="w-full text-sm border border-border-default rounded px-3 py-2 bg-white">
+                <option value="PERCENT">Percent (%)</option>
+                <option value="FIXED">Fixed (₱)</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Discount Value *</label>
+              <input name="discountValue" type="number" step="0.01" required className="w-full text-sm border border-border-default rounded px-3 py-2" />
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Min Spend</label>
+              <input name="minSpend" type="number" step="0.01" defaultValue="0" className="w-full text-sm border border-border-default rounded px-3 py-2" />
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Max Discount (optional)</label>
+              <input name="maxDiscount" type="number" step="0.01" className="w-full text-sm border border-border-default rounded px-3 py-2" />
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Expires At *</label>
+              <input name="expiresAt" type="datetime-local" required className="w-full text-sm border border-border-default rounded px-3 py-2" />
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Usage Limit (optional)</label>
+              <input name="usageLimit" type="number" className="w-full text-sm border border-border-default rounded px-3 py-2" />
+            </div>
+            <div className="col-span-2">
+              <button
+                type="submit"
+                formAction={async (fd: FormData) => {
+                  "use server"
+                  const maxDiscount = fd.get("maxDiscount") as string
+                  const usageLimit = fd.get("usageLimit") as string
+                  await createVoucher({
+                    code: (fd.get("code") as string).toUpperCase().trim(),
+                    title: fd.get("title") as string,
+                    discountType: fd.get("discountType") as "PERCENT" | "FIXED",
+                    discountValue: parseFloat(fd.get("discountValue") as string),
+                    minSpend: parseFloat(fd.get("minSpend") as string) || 0,
+                    maxDiscount: maxDiscount ? parseFloat(maxDiscount) : null,
+                    expiresAt: new Date(fd.get("expiresAt") as string),
+                    usageLimit: usageLimit ? parseInt(usageLimit, 10) : null,
+                    isActive: true,
+                  })
+                }}
+                className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded"
+              >
+                Create Voucher
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   )
 }

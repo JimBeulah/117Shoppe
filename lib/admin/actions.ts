@@ -83,6 +83,32 @@ export async function demoteToBuyer(userId: string, clerkId: string): Promise<{ 
   return {}
 }
 
+export async function banUser(userId: string, clerkId: string): Promise<{ error?: string }> {
+  await assertAdmin()
+  await prisma.user.update({ where: { id: userId }, data: { isBanned: true } })
+  try {
+    const clerk = await clerkClient()
+    await clerk.users.banUser(clerkId)
+  } catch {
+    return { error: "Banned in DB but Clerk sync failed — please retry" }
+  }
+  revalidatePath("/admin/users")
+  return {}
+}
+
+export async function unbanUser(userId: string, clerkId: string): Promise<{ error?: string }> {
+  await assertAdmin()
+  await prisma.user.update({ where: { id: userId }, data: { isBanned: false } })
+  try {
+    const clerk = await clerkClient()
+    await clerk.users.unbanUser(clerkId)
+  } catch {
+    return { error: "Unbanned in DB but Clerk sync failed — please retry" }
+  }
+  revalidatePath("/admin/users")
+  return {}
+}
+
 // ─── Products ─────────────────────────────────────────────────────────────────
 
 export async function adminToggleProduct(productId: string, isActive: boolean): Promise<{ error?: string }> {
@@ -175,6 +201,21 @@ export async function deleteBanner(id: string): Promise<{ error?: string }> {
   return {}
 }
 
+export async function updateBanner(
+  id: string,
+  imageUrl: string,
+  title: string | null,
+  linkUrl: string | null,
+  displayOrder: number
+): Promise<{ error?: string }> {
+  await assertAdmin()
+  if (!imageUrl.trim()) return { error: "Image URL is required" }
+  await prisma.banner.update({ where: { id }, data: { imageUrl, title, linkUrl, displayOrder } })
+  revalidatePath("/admin/banners")
+  revalidatePath("/")
+  return {}
+}
+
 // ─── Vouchers ─────────────────────────────────────────────────────────────────
 
 export async function createVoucher(data: {
@@ -205,6 +246,24 @@ export async function createVoucher(data: {
 export async function deactivateVoucher(id: string): Promise<{ error?: string }> {
   await assertAdmin()
   await prisma.voucher.update({ where: { id }, data: { isActive: false } })
+  revalidatePath("/admin/vouchers")
+  return {}
+}
+
+export async function updateVoucher(id: string, data: {
+  title: string
+  discountType: "PERCENT" | "FIXED"
+  discountValue: number
+  minSpend: number
+  maxDiscount: number | null
+  expiresAt: Date
+  usageLimit: number | null
+  isActive: boolean
+}): Promise<{ error?: string }> {
+  await assertAdmin()
+  if (!data.title.trim()) return { error: "Title is required" }
+  if (data.discountValue <= 0) return { error: "Discount value must be positive" }
+  await prisma.voucher.update({ where: { id }, data })
   revalidatePath("/admin/vouchers")
   return {}
 }
@@ -289,5 +348,19 @@ export async function deleteFlashSale(id: string): Promise<{ error?: string }> {
   ])
   revalidatePath("/admin/flash-sales")
   revalidatePath("/")
+  return {}
+}
+
+// ─── Orders ───────────────────────────────────────────────────────────────────
+
+const VALID_ORDER_STATUSES = ["PENDING", "PAID", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"] as const
+type OrderStatus = typeof VALID_ORDER_STATUSES[number]
+
+export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<{ error?: string }> {
+  await assertAdmin()
+  if (!VALID_ORDER_STATUSES.includes(status)) return { error: "Invalid status" }
+  await prisma.order.update({ where: { id: orderId }, data: { status } })
+  revalidatePath(`/admin/orders/${orderId}`)
+  revalidatePath("/admin/orders")
   return {}
 }

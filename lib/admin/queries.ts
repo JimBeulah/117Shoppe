@@ -143,7 +143,7 @@ export async function getAdminUsers(
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
-      select: { id: true, name: true, email: true, role: true, clerkId: true, createdAt: true },
+      select: { id: true, name: true, email: true, role: true, isBanned: true, clerkId: true, createdAt: true },
     }),
     prisma.user.count({ where }),
   ])
@@ -266,7 +266,7 @@ export async function getAdminVouchers(
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
-      select: { id: true, code: true, title: true, discountType: true, discountValue: true, minSpend: true, expiresAt: true, isActive: true },
+      select: { id: true, code: true, title: true, discountType: true, discountValue: true, minSpend: true, maxDiscount: true, usageLimit: true, expiresAt: true, isActive: true },
     }),
     prisma.voucher.count({ where }),
   ])
