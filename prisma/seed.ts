@@ -39,22 +39,57 @@ async function main() {
   console.log('Seeding database...')
 
   // ── Categories ─────────────────────────────────────────────────────────────
-  const categories = await Promise.all([
-    prisma.category.upsert({ where: { slug: 'electronics' }, update: {}, create: { name: 'Electronics', slug: 'electronics', icon: '📱' } }),
-    prisma.category.upsert({ where: { slug: 'fashion' }, update: {}, create: { name: 'Fashion', slug: 'fashion', icon: '👗' } }),
-    prisma.category.upsert({ where: { slug: 'home-living' }, update: {}, create: { name: 'Home & Living', slug: 'home-living', icon: '🏠' } }),
-    prisma.category.upsert({ where: { slug: 'sports' }, update: {}, create: { name: 'Sports', slug: 'sports', icon: '⚽' } }),
-    prisma.category.upsert({ where: { slug: 'beauty' }, update: {}, create: { name: 'Beauty', slug: 'beauty', icon: '💄' } }),
-    prisma.category.upsert({ where: { slug: 'toys' }, update: {}, create: { name: 'Toys', slug: 'toys', icon: '🧸' } }),
-    prisma.category.upsert({ where: { slug: 'food' }, update: {}, create: { name: 'Food & Drinks', slug: 'food', icon: '🍜' } }),
-    prisma.category.upsert({ where: { slug: 'books' }, update: {}, create: { name: 'Books', slug: 'books', icon: '📚' } }),
-    prisma.category.upsert({ where: { slug: 'automotive' }, update: {}, create: { name: 'Automotive', slug: 'automotive', icon: '🚗' } }),
-    prisma.category.upsert({ where: { slug: 'pets' }, update: {}, create: { name: 'Pets', slug: 'pets', icon: '🐾' } }),
-    prisma.category.upsert({ where: { slug: 'health' }, update: {}, create: { name: 'Health', slug: 'health', icon: '💊' } }),
-    prisma.category.upsert({ where: { slug: 'vouchers' }, update: {}, create: { name: 'Vouchers', slug: 'vouchers', icon: '🎟️' } }),
-  ])
+  const catDefs = [
+    { name: "Men's Apparel",            slug: 'mens-apparel',           icon: '👕' },
+    { name: 'Mobiles & Gadgets',        slug: 'mobiles-gadgets',        icon: '📱' },
+    { name: 'Mobiles Accessories',      slug: 'mobiles-accessories',    icon: '🔌' },
+    { name: 'Home Entertainment',       slug: 'home-entertainment',     icon: '📺' },
+    { name: 'Babies & Kids',            slug: 'babies-kids',            icon: '👶' },
+    { name: 'Home & Living',            slug: 'home-living',            icon: '🏠' },
+    { name: 'Groceries',                slug: 'groceries',              icon: '🛒' },
+    { name: 'Toys, Games & Collectibles', slug: 'toys-games-collectibles', icon: '🧸' },
+    { name: "Women's Bags",             slug: 'womens-bags',            icon: '👜' },
+    { name: 'Women Accessories',        slug: 'women-accessories',      icon: '💍' },
+    { name: "Women's Apparel",          slug: 'womens-apparel',         icon: '👗' },
+    { name: 'Health & Personal Care',   slug: 'health-personal-care',   icon: '💊' },
+    { name: 'Makeup & Fragrances',      slug: 'makeup-fragrances',      icon: '💄' },
+    { name: 'Home Appliances',          slug: 'home-appliances',        icon: '🍳' },
+    { name: 'Laptops & Computers',      slug: 'laptops-computers',      icon: '💻' },
+    { name: 'Cameras',                  slug: 'cameras',                icon: '📷' },
+    { name: 'Sports & Travel',          slug: 'sports-travel',          icon: '⚽' },
+    { name: "Men's Bags & Accessories", slug: 'mens-bags-accessories',  icon: '🎒' },
+    { name: "Men's Shoes",              slug: 'mens-shoes',             icon: '👟' },
+    { name: 'Motors',                   slug: 'motors',                 icon: '🏍️' },
+    { name: "Women's Shoes",            slug: 'womens-shoes',           icon: '👠' },
+    { name: 'Pet Care',                 slug: 'pet-care',               icon: '🐾' },
+    { name: 'Audio',                    slug: 'audio',                  icon: '🎧' },
+    { name: 'Hobbies & Stationery',     slug: 'hobbies-stationery',     icon: '✏️' },
+    { name: 'Gaming',                   slug: 'gaming',                 icon: '🎮' },
+  ]
 
-  const [electronics, fashion, homeLiving, sports, beauty] = categories
+  const categories = await Promise.all(
+    catDefs.map((cat, i) =>
+      prisma.category.upsert({
+        where: { slug: cat.slug },
+        update: { displayOrder: i + 1 },
+        create: { ...cat, displayOrder: i + 1 },
+      })
+    )
+  )
+
+  const [
+    mensApparel, mobilesGadgets, mobilesAccessories, homeEntertainment, babiesKids,
+    homeLiving, groceries, toysGames, womensBags, womenAccessories,
+    womensApparel, healthPersonalCare, makeupFragrances, homeAppliances, laptopsComputers,
+    cameras, sportsTravel, mensBagsAccessories, mensShoes, motors,
+    womensShoes, petCare, audio, hobbiesStationery, gaming,
+  ] = categories
+
+  // aliases for product assignments below
+  const electronics = mobilesGadgets
+  const fashion = womensApparel
+  const sports = sportsTravel
+  const beauty = makeupFragrances
 
   // ── Users + Shops ──────────────────────────────────────────────────────────
   await prisma.user.upsert({
@@ -113,11 +148,11 @@ async function main() {
     { name: 'Stainless Steel Water Bottle 1L', slug: 'stainless-steel-water-bottle-1l', description: 'Double-wall insulated, keeps cold 24h, hot 12h.', price: 699, originalPrice: 999, stock: 700, sold: 5800, images: ['https://placehold.co/400x400/10B981/white?text=Bottle'], categoryId: sports.id, shopId: shops[4].id, rating: 4.9, reviewCount: 3201, isTrending: true },
   ]
 
-  for (const p of productData) {
+  for (const { slug, ...rest } of productData) {
     await prisma.product.upsert({
-      where: { slug: p.slug },
-      update: {},
-      create: p,
+      where: { slug },
+      update: { categoryId: rest.categoryId },
+      create: { slug, ...rest },
     })
   }
 

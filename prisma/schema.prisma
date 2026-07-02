@@ -99,11 +99,12 @@ model Shop {
 }
 
 model Category {
-  id       String  @id @default(cuid())
-  name     String
-  slug     String  @unique
-  icon     String?
-  parentId String?
+  id           String  @id @default(cuid())
+  name         String
+  slug         String  @unique
+  icon         String?
+  parentId     String?
+  displayOrder Int     @default(0)
 
   parent   Category?  @relation("SubCategories", fields: [parentId], references: [id])
   children Category[] @relation("SubCategories")

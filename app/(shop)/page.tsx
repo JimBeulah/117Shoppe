@@ -11,7 +11,7 @@ export const revalidate = 60
 
 export default async function HomePage() {
   const [categories, banners, vouchers, flashProducts, trendingProducts, discoverProducts] = await Promise.all([
-    prisma.category.findMany({ where: { parentId: null }, orderBy: { name: "asc" } }),
+    prisma.category.findMany({ where: { parentId: null }, orderBy: { displayOrder: "asc" } }),
     prisma.banner.findMany({ where: { isActive: true }, orderBy: { displayOrder: "asc" } }),
     prisma.voucher.findMany({ where: { isActive: true, expiresAt: { gt: new Date() } }, orderBy: { expiresAt: "asc" }, take: 6 }),
     prisma.product.findMany({
@@ -24,13 +24,13 @@ export default async function HomePage() {
       where: { isTrending: true, isActive: true },
       include: { shop: { select: { name: true, slug: true } } },
       orderBy: { sold: "desc" },
-      take: 20,
+      take: 2,
     }),
     prisma.product.findMany({
       where: { isActive: true },
       include: { shop: { select: { name: true, slug: true } } },
       orderBy: { createdAt: "desc" },
-      take: 4,
+      take: 12,
     }),
   ])
 
@@ -38,15 +38,13 @@ export default async function HomePage() {
 
   return (
     <div className="bg-bg-page">
-      <CategoryBar categories={categories} />
-
       <div className="max-w-7xl mx-auto px-4 py-4 space-y-4">
-        {/* Hero + Voucher + Discover row */}
+        {/* Hero + Voucher + Trending row */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 items-start">
           <HeroCarousel banners={banners} />
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <VoucherPanel vouchers={vouchers} />
-            <DailyDiscoverPanel products={discoverProducts} />
+            <TrendingProductsGrid products={trendingProducts} />
           </div>
         </div>
 
@@ -55,12 +53,14 @@ export default async function HomePage() {
           <FlashSaleSection products={flashProducts} endsAt={flashSaleEndsAt} />
         )}
 
+        <CategoryBar categories={categories} />
+
         {/* Promo Banners */}
         <PromoBannersRow />
 
-        {/* Trending */}
-        {trendingProducts.length > 0 && (
-          <TrendingProductsGrid products={trendingProducts} />
+        {/* Daily Discover */}
+        {discoverProducts.length > 0 && (
+          <DailyDiscoverPanel products={discoverProducts} />
         )}
       </div>
     </div>

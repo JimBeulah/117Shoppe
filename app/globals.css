@@ -152,3 +152,18 @@
     display: none;
   }
 }
+
+.scrollbar-violet {
+  scrollbar-width: thin;
+  scrollbar-color: #7c3aed transparent;
+}
+.scrollbar-violet::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-violet::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-violet::-webkit-scrollbar-thumb {
+  background-color: #7c3aed;
+  border-radius: 9999px;
+}

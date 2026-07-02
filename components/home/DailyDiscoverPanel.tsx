@@ -1,32 +1,14 @@
-import Image from "next/image"
-import Link from "next/link"
 import { SectionHeader } from "@/components/ui/SectionHeader"
-import type { ProductCard } from "@/types"
-import { formatPrice } from "@/lib/utils"
+import { ProductCard } from "@/components/ui/ProductCard"
+import type { ProductCard as ProductCardType } from "@/types"
 
-export function DailyDiscoverPanel({ products }: { products: ProductCard[] }) {
+export function DailyDiscoverPanel({ products }: { products: ProductCardType[] }) {
   return (
     <div className="bg-white rounded-lg p-4 border border-border/50 shadow-sm">
       <SectionHeader title="Daily Discover" href="/discover" />
-      <div className="grid grid-cols-2 gap-2">
-        {products.slice(0, 4).map((p) => (
-          <Link key={p.id} href={`/product/${p.slug}`} className="group flex flex-col gap-1">
-            <div className="relative aspect-square rounded overflow-hidden bg-brand-50">
-              <Image
-                src={p.images[0] ?? "https://placehold.co/200x200/EDE9FE/7C3AED?text=Product"}
-                alt={p.name}
-                fill
-                sizes="120px"
-                className="object-cover group-hover:scale-105 transition-transform duration-300"
-              />
-            </div>
-            <span className="text-[10px] font-medium text-text-primary truncate mt-0.5 group-hover:text-brand-600 transition-colors">
-              {p.name}
-            </span>
-            <span className="text-xs font-bold text-accent-hot">
-              {formatPrice(p.price)}
-            </span>
-          </Link>
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+        {products.map((p) => (
+          <ProductCard key={p.id} product={p} />
         ))}
       </div>
     </div>
