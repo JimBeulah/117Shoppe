@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getCurrentUser } from '@/lib/data/user'
 import { getCurrentShop } from '@/lib/seller/queries'
-import { getConversationsForSeller } from '@/lib/data/chat'
+import { getConversationsForSeller, toConversationItem } from '@/lib/data/chat'
 import { ConversationList } from '@/components/chat/ConversationList'
 import { ChatWindow } from '@/components/chat/ChatWindow'
 import type { ConversationItem } from '@/types/chat'
@@ -23,27 +23,9 @@ export default async function SellerChatPage({ searchParams }: Props) {
   const { c: conversationId } = await searchParams
   const raw = await getConversationsForSeller(shop.id)
 
-  const conversations: ConversationItem[] = raw.map(c => ({
-    id: c.id,
-    lastMessageAt: c.lastMessageAt.toISOString(),
-    displayName: c.buyer.name,
-    displayAvatar: c.buyer.avatar,
-    lastMessage: c.messages[0]
-      ? {
-          id: c.messages[0].id,
-          senderId: c.messages[0].senderId,
-          receiverId: c.messages[0].receiverId,
-          conversationId: c.messages[0].conversationId,
-          content: c.messages[0].content,
-          isRead: c.messages[0].isRead,
-          createdAt: c.messages[0].createdAt.toISOString(),
-        }
-      : null,
-    hasUnread:
-      !!c.messages[0] &&
-      !c.messages[0].isRead &&
-      c.messages[0].receiverId === user.id,
-  }))
+  const conversations: ConversationItem[] = raw.map(c =>
+    toConversationItem(c, { name: c.buyer.name, avatar: c.buyer.avatar }, user.id)
+  )
 
   const active = conversationId
     ? conversations.find(c => c.id === conversationId)

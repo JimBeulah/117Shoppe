@@ -15,6 +15,22 @@ function formatTime(iso: string) {
   return d.toLocaleDateString()
 }
 
+// Relative-time text depends on Date.now(), which differs between the SSR
+// pass and hydration — render nothing until mounted so the two always agree.
+function RelativeTime({ iso }: { iso: string }) {
+  const [text, setText] = useState('')
+
+  useEffect(() => {
+    setText(formatTime(iso))
+  }, [iso])
+
+  return (
+    <span className="text-[10px] text-text-secondary flex-shrink-0 ml-1">
+      {text}
+    </span>
+  )
+}
+
 interface Props {
   conversations: ConversationItem[]
   activeId?: string
@@ -91,9 +107,7 @@ export function ConversationList({ conversations: initial, activeId, currentUser
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-text-primary truncate">{c.displayName}</span>
-              <span className="text-[10px] text-text-secondary flex-shrink-0 ml-1">
-                {formatTime(c.lastMessageAt)}
-              </span>
+              <RelativeTime iso={c.lastMessageAt} />
             </div>
             <p className="text-xs text-text-secondary truncate mt-0.5">
               {c.lastMessage?.content ?? 'No messages yet'}

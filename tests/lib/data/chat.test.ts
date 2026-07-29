@@ -60,17 +60,25 @@ describe('getConversationsForSeller', () => {
 })
 
 describe('getMessages', () => {
-  it('fetches page 1 with default page size 30', async () => {
+  it('fetches page 1 (most recent messages) with default page size 30', async () => {
     vi.mocked(prisma.message.findMany).mockResolvedValue([])
     await getMessages('conv-1')
     expect(prisma.message.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { conversationId: 'conv-1' },
-        orderBy: { createdAt: 'asc' },
+        orderBy: { createdAt: 'desc' },
         skip: 0,
         take: 30,
       })
     )
+  })
+
+  it('returns messages in chronological order', async () => {
+    const older = { ...mockMessage, id: 'm1', conversationId: 'conv-1', createdAt: new Date('2026-06-30T10:00:00Z') }
+    const newer = { ...mockMessage, id: 'm2', conversationId: 'conv-1', createdAt: new Date('2026-06-30T10:01:00Z') }
+    vi.mocked(prisma.message.findMany).mockResolvedValue([newer, older])
+    const result = await getMessages('conv-1')
+    expect(result).toEqual([older, newer])
   })
 
   it('calculates correct skip for page 2', async () => {

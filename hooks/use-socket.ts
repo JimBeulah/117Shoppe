@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@clerk/nextjs'
-import { getSocket } from '@/lib/socket/client'
+import { getSocket, disconnectSocket } from '@/lib/socket/client'
 import type { Socket } from 'socket.io-client'
 
 export function useSocket() {
@@ -11,23 +11,27 @@ export function useSocket() {
   const [connected, setConnected] = useState(false)
 
   useEffect(() => {
-    if (!isSignedIn) return
-
-    let mounted = true
-
-    async function connect() {
-      const token = await getToken()
-      if (!token || !mounted) return
-
-      const s = getSocket(token)
-      s.on('connect', () => { if (mounted) setConnected(true) })
-      s.on('disconnect', () => { if (mounted) setConnected(false) })
-      if (mounted) setSocket(s)
+    if (!isSignedIn) {
+      disconnectSocket()
+      setSocket(null)
+      setConnected(false)
+      return
     }
 
-    connect()
+    const s = getSocket(() => getToken())
 
-    return () => { mounted = false }
+    function handleConnect() { setConnected(true) }
+    function handleDisconnect() { setConnected(false) }
+
+    s.on('connect', handleConnect)
+    s.on('disconnect', handleDisconnect)
+    setSocket(s)
+    setConnected(s.connected)
+
+    return () => {
+      s.off('connect', handleConnect)
+      s.off('disconnect', handleDisconnect)
+    }
   }, [isSignedIn, getToken])
 
   return { socket, connected }

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import type { ConversationItem } from '@/types/chat'
 
 const MESSAGE_SELECT = {
   id: true,
@@ -41,13 +42,14 @@ export async function getConversationsForSeller(shopId: string) {
 }
 
 export async function getMessages(conversationId: string, page = 1, pageSize = 30) {
-  return prisma.message.findMany({
+  const messages = await prisma.message.findMany({
     where: { conversationId },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' },
     skip: (page - 1) * pageSize,
     take: pageSize,
     select: MESSAGE_SELECT,
   })
+  return messages.reverse()
 }
 
 export async function getUnreadCount(userId: string) {
@@ -61,4 +63,44 @@ export async function findOrCreateConversation(buyerId: string, shopId: string) 
     update: {},
     select: { id: true },
   })
+}
+
+interface ConversationForItem {
+  id: string
+  lastMessageAt: Date
+  messages: Array<{
+    id: string
+    senderId: string
+    receiverId: string
+    conversationId: string
+    content: string
+    isRead: boolean
+    createdAt: Date
+  }>
+}
+
+export function toConversationItem(
+  conversation: ConversationForItem,
+  display: { name: string; avatar: string | null },
+  currentUserId: string
+): ConversationItem {
+  const last = conversation.messages[0]
+  return {
+    id: conversation.id,
+    lastMessageAt: conversation.lastMessageAt.toISOString(),
+    displayName: display.name,
+    displayAvatar: display.avatar,
+    lastMessage: last
+      ? {
+          id: last.id,
+          senderId: last.senderId,
+          receiverId: last.receiverId,
+          conversationId: last.conversationId,
+          content: last.content,
+          isRead: last.isRead,
+          createdAt: last.createdAt.toISOString(),
+        }
+      : null,
+    hasUnread: !!last && !last.isRead && last.receiverId === currentUserId,
+  }
 }
