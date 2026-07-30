@@ -15,6 +15,7 @@ async function main() {
   await app.prepare()
 
   const { setupSocketServer } = await import('@/lib/socket/handlers')
+  const { setIO } = await import('@/lib/socket/io')
 
   const httpServer = createServer(async (req, res) => {
     const parsedUrl = parse(req.url!, true)
@@ -22,6 +23,7 @@ async function main() {
   })
 
   const io = new Server(httpServer)
+  setIO(io)
 
   setupSocketServer(io)
 
