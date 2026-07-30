@@ -16,6 +16,10 @@ vi.mock("@/lib/db", () => ({
   },
 }))
 
+vi.mock("@/lib/notifications/create", () => ({
+  createNotification: vi.fn(),
+}))
+
 describe("replyToReview", () => {
   beforeEach(() => vi.clearAllMocks())
 
@@ -62,7 +66,12 @@ describe("replyToReview", () => {
 
     const { prisma } = await import("@/lib/db")
     vi.mocked(prisma.shop.findUnique).mockResolvedValue({ id: "shop-1" } as any)
-    vi.mocked(prisma.review.findFirst).mockResolvedValue({ id: "rev-1", reply: { id: "reply-1" } } as any)
+    vi.mocked(prisma.review.findFirst).mockResolvedValue({
+      id: "rev-1",
+      userId: "buyer-1",
+      reply: { id: "reply-1" },
+      product: { name: "Widget", slug: "widget" },
+    } as any)
 
     const { replyToReview } = await import("@/lib/seller/actions")
     const result = await replyToReview("rev-1", "Thank you!")
@@ -76,7 +85,12 @@ describe("replyToReview", () => {
 
     const { prisma } = await import("@/lib/db")
     vi.mocked(prisma.shop.findUnique).mockResolvedValue({ id: "shop-1" } as any)
-    vi.mocked(prisma.review.findFirst).mockResolvedValue({ id: "rev-1", reply: null } as any)
+    vi.mocked(prisma.review.findFirst).mockResolvedValue({
+      id: "rev-1",
+      userId: "buyer-1",
+      reply: null,
+      product: { name: "Widget", slug: "widget" },
+    } as any)
 
     const { replyToReview } = await import("@/lib/seller/actions")
     const result = await replyToReview("rev-1", "Thank you for your feedback!")

@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
+import { createNotification } from "@/lib/notifications/create"
+import { buildNewOrderCopy } from "@/lib/notifications/copy"
 
 const SHIPPING_FEE = 49
 
@@ -109,6 +111,9 @@ export async function placeOrder(
     })
 
     orderIds.push(order.id)
+
+    const shop = items[0].product.shop
+    await createNotification({ userId: shop.ownerId, ...buildNewOrderCopy(order.id, user.name) })
   }
 
   // Clear cart

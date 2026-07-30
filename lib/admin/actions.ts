@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache"
 import { clerkClient } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
+import { createNotification } from "@/lib/notifications/create"
+import { buildOrderStatusCopy } from "@/lib/notifications/copy"
 
 async function assertAdmin() {
   const user = await getCurrentUser()
@@ -359,7 +361,16 @@ type OrderStatus = typeof VALID_ORDER_STATUSES[number]
 export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<{ error?: string }> {
   await assertAdmin()
   if (!VALID_ORDER_STATUSES.includes(status)) return { error: "Invalid status" }
-  await prisma.order.update({ where: { id: orderId }, data: { status } })
+
+  const order = await prisma.order.update({
+    where: { id: orderId },
+    data: { status },
+    select: { userId: true },
+  })
+
+  const copy = buildOrderStatusCopy(orderId, status)
+  if (copy) await createNotification({ userId: order.userId, ...copy })
+
   revalidatePath(`/admin/orders/${orderId}`)
   revalidatePath("/admin/orders")
   return {}

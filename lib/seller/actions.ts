@@ -5,6 +5,8 @@ import { redirect } from "next/navigation"
 import { clerkClient } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
+import { createNotification } from "@/lib/notifications/create"
+import { buildOrderStatusCopy, buildReviewReplyCopy } from "@/lib/notifications/copy"
 import type { UpsertProductData } from "@/types/seller"
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
@@ -207,6 +209,9 @@ export async function shipOrder(
     }),
   ])
 
+  const shippedCopy = buildOrderStatusCopy(orderId, "SHIPPED")
+  if (shippedCopy) await createNotification({ userId: order.userId, ...shippedCopy })
+
   revalidatePath(`/seller/orders/${orderId}`)
   revalidatePath("/seller/orders")
   return {}
@@ -221,6 +226,9 @@ export async function cancelOrder(orderId: string): Promise<{ error?: string }> 
   if (order.status !== "PAID") return { error: "Only PAID orders can be cancelled" }
 
   await prisma.order.update({ where: { id: orderId }, data: { status: "CANCELLED" } })
+
+  const cancelledCopy = buildOrderStatusCopy(orderId, "CANCELLED")
+  if (cancelledCopy) await createNotification({ userId: order.userId, ...cancelledCopy })
 
   revalidatePath(`/seller/orders/${orderId}`)
   revalidatePath("/seller/orders")
@@ -238,13 +246,24 @@ export async function replyToReview(reviewId: string, comment: string): Promise<
 
   const review = await prisma.review.findFirst({
     where: { id: reviewId, product: { shopId: shop.id } },
-    select: { id: true, reply: { select: { id: true } } },
+    select: {
+      id: true,
+      userId: true,
+      reply: { select: { id: true } },
+      product: { select: { name: true, slug: true } },
+    },
   })
   if (!review) return { error: "Review not found" }
   if (review.reply) return { error: "Already replied to this review" }
 
   await prisma.reviewReply.create({
     data: { reviewId, shopId: shop.id, comment: trimmed },
+  })
+
+  await createNotification({
+    userId: review.userId,
+    ...buildReviewReplyCopy(review.product.name),
+    link: `/product/${review.product.slug}`,
   })
 
   revalidatePath("/seller/reviews")
