@@ -2,6 +2,9 @@ import type { Server, Socket } from 'socket.io'
 import { verifyToken } from '@clerk/backend'
 import { prisma } from '@/lib/db'
 import { getUnreadCount } from '@/lib/data/chat'
+import { getUnreadNotificationCount } from '@/lib/data/notifications'
+import { createNotification } from '@/lib/notifications/create'
+import { buildNewMessageCopy } from '@/lib/notifications/copy'
 
 interface AuthSocket extends Socket {
   data: { userId: string }
@@ -38,6 +41,9 @@ export function setupSocketServer(io: Server) {
     // Push initial unread count on connect
     const initial = await getUnreadCount(userId)
     socket.emit('unread-count', { count: initial })
+
+    const initialNotifCount = await getUnreadNotificationCount(userId)
+    socket.emit('unread-notification-count', { count: initialNotifCount })
 
     // Join a conversation room (called when user opens a chat)
     socket.on('join-room', async ({ conversationId }: { conversationId: string }) => {
@@ -90,6 +96,9 @@ export function setupSocketServer(io: Server) {
         // Update receiver's unread count
         const count = await getUnreadCount(receiverId)
         io.to(`user:${receiverId}`).emit('unread-count', { count })
+
+        const sender = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } })
+        await createNotification({ userId: receiverId, ...buildNewMessageCopy(sender?.name ?? 'Someone') })
       }
     )
 
