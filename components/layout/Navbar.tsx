@@ -1,8 +1,9 @@
 "use client"
 
 import Link from "next/link"
-import { Search, ShoppingCart, Bell } from "lucide-react"
+import { Search, ShoppingCart } from "lucide-react"
 import { UnreadBadge } from "@/components/chat/UnreadBadge"
+import { NotificationBell } from "@/components/notifications/NotificationBell"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import {
@@ -72,9 +73,7 @@ export function Navbar({ cartBadge }: NavbarProps) {
               </span>
             </Link>
             <UnreadBadge />
-            <button aria-label="Notifications" className="hover:text-brand-100 hover:scale-110 transition-all duration-200">
-              <Bell size={22} />
-            </button>
+            <NotificationBell />
             <div className="h-5 w-px bg-white/30" />
 
             <Show
