@@ -19,10 +19,10 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const shop = await getShopBySlug(slug)
-  if (!shop) return { title: "Shop Not Found | Shoppe" }
+  if (!shop) return { title: "Shop Not Found | 11/7 Shoppe" }
   return {
-    title: `${shop.name} | Shoppe`,
-    description: `Shop at ${shop.name} on Shoppe — ${shop._count.products} products available`,
+    title: `${shop.name} | 11/7 Shoppe`,
+    description: `Shop at ${shop.name} on 11/7 Shoppe — ${shop._count.products} products available`,
     openGraph: {
       images: shop.logo ? [{ url: shop.logo }] : [],
     },

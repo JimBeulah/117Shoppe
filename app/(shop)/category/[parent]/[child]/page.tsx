@@ -19,10 +19,10 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const sp = await searchParams
   const filters = parseCatalogFilters(sp)
   const result = await getCategoryWithProducts(child, "child", filters)
-  if (!result) return { title: "Category Not Found | Shoppe" }
+  if (!result) return { title: "Category Not Found | 11/7 Shoppe" }
   return {
-    title: `${result.category.name} | Shoppe`,
-    description: `Shop ${result.category.name} — ${result.total.toLocaleString()} products on Shoppe`,
+    title: `${result.category.name} | 11/7 Shoppe`,
+    description: `Shop ${result.category.name} — ${result.total.toLocaleString()} products on 11/7 Shoppe`,
   }
 }
 

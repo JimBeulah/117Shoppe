@@ -17,9 +17,9 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const product = await getProductBySlug(slug)
-  if (!product) return { title: "Product Not Found | Shoppe" }
+  if (!product) return { title: "Product Not Found | 11/7 Shoppe" }
   return {
-    title: `${product.name} | Shoppe`,
+    title: `${product.name} | 11/7 Shoppe`,
     description: product.description.slice(0, 160),
     openGraph: {
       images: product.images[0] ? [{ url: product.images[0] }] : [],

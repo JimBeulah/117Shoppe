@@ -15,10 +15,10 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const sp = await searchParams
   const q = typeof sp.q === "string" ? sp.q : ""
   return {
-    title: q ? `"${q}" — Search Results | Shoppe` : "Search Products | Shoppe",
+    title: q ? `"${q}" — Search Results | 11/7 Shoppe` : "Search Products | 11/7 Shoppe",
     description: q
-      ? `Find "${q}" on Shoppe — Philippines' favourite online shop`
-      : "Search millions of products on Shoppe",
+      ? `Find "${q}" on 11/7 Shoppe — Philippines' favourite online shop`
+      : "Search millions of products on 11/7 Shoppe",
   }
 }
 
