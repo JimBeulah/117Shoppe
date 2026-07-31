@@ -10,8 +10,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: { default: "11/7 Eshopee", template: "%s | 11/7 Eshopee" },
-  description: "Shop millions of products at the best prices on 11/7 Eshopee.",
+  title: { default: "11/7 Shoppe", template: "%s | 11/7 Shoppe" },
+  description: "Shop millions of products at the best prices on 11/7 Shoppe.",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

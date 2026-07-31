@@ -2,7 +2,7 @@ import Link from "next/link"
 
 const footerLinks = {
   "Customer Service": ["Help Center", "How to Buy", "Returns & Refunds", "Contact Us"],
-  "About 11/7 Eshopee": ["About Us", "Careers", "Blog", "Privacy Policy", "Terms of Service"],
+  "About 11/7 Shoppe": ["About Us", "Careers", "Blog", "Privacy Policy", "Terms of Service"],
   "Payment & Shipping": ["GCash", "Maya", "Credit Card", "J&T Express", "Ninja Van"],
   "Follow Us": ["Facebook", "Instagram", "TikTok", "YouTube"],
 }
@@ -29,7 +29,7 @@ export function Footer() {
         </div>
 
         <div className="mt-8 pt-6 border-t border-border flex flex-col md:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-text-secondary">© 2026 11/7 Eshopee. All rights reserved.</p>
+          <p className="text-xs text-text-secondary">© 2026 11/7 Shoppe. All rights reserved.</p>
           <div className="flex items-center gap-4">
             <span className="text-xs text-text-secondary">Country & Region:</span>
             <span className="text-xs font-medium text-text-primary">🇵🇭 Philippines</span>

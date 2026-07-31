@@ -5,7 +5,7 @@ import { getBuyerOrders } from "@/lib/data/orders"
 import { getUserReviewedProductIds } from "@/lib/data/reviews"
 import { OrderCard } from "@/components/account/OrderCard"
 
-export const metadata = { title: "My Purchases | Eshopee" }
+export const metadata = { title: "My Purchases | Shoppe" }
 
 export default async function OrdersPage() {
   const { userId } = await auth()

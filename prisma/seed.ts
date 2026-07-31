@@ -93,9 +93,9 @@ async function main() {
 
   // ── Users + Shops ──────────────────────────────────────────────────────────
   await prisma.user.upsert({
-    where: { email: 'admin@eshopee.com' },
+    where: { email: 'admin@shoppe.com' },
     update: {},
-    create: { clerkId: 'seed_admin_clerk_id', name: 'Admin', email: 'admin@eshopee.com', passwordHash: hash('admin123'), role: Role.ADMIN, coins: 0 },
+    create: { clerkId: 'seed_admin_clerk_id', name: 'Admin', email: 'admin@shoppe.com', passwordHash: hash('admin123'), role: Role.ADMIN, coins: 0 },
   })
 
   const sellers = await Promise.all([
@@ -158,11 +158,11 @@ async function main() {
 
   // ── Banners ────────────────────────────────────────────────────────────────
   const banners = [
-    { imageUrl: 'https://placehold.co/1200x400/6D28D9/white?text=11%2F7+Eshopee+Mega+Sale', title: 'Mega Sale — Up to 70% Off', linkUrl: '/sale', displayOrder: 1 },
+    { imageUrl: 'https://placehold.co/1200x400/6D28D9/white?text=11%2F7+Shoppe+Mega+Sale', title: 'Mega Sale — Up to 70% Off', linkUrl: '/sale', displayOrder: 1 },
     { imageUrl: 'https://placehold.co/1200x400/EC4899/white?text=Flash+Sale+Every+Hour', title: 'Flash Sale Every Hour', linkUrl: '/flash-sale', displayOrder: 2 },
     { imageUrl: 'https://placehold.co/1200x400/7C3AED/white?text=Free+Shipping+All+Orders', title: 'Free Shipping on All Orders', linkUrl: '/free-shipping', displayOrder: 3 },
     { imageUrl: 'https://placehold.co/1200x400/10B981/white?text=New+Arrivals+This+Week', title: 'New Arrivals This Week', linkUrl: '/new', displayOrder: 4 },
-    { imageUrl: 'https://placehold.co/1200x400/F59E0B/white?text=Earn+Coins+Every+Purchase', title: 'Earn Eshopee Coins', linkUrl: '/coins', displayOrder: 5 },
+    { imageUrl: 'https://placehold.co/1200x400/F59E0B/white?text=Earn+Coins+Every+Purchase', title: 'Earn Shoppe Coins', linkUrl: '/coins', displayOrder: 5 },
   ]
 
   for (const b of banners) {

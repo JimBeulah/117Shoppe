@@ -21,8 +21,8 @@ export default async function RejectedPage() {
         )}
         <p className="text-xs text-text-secondary">
           Contact{" "}
-          <a href="mailto:support@eshopee.com" className="text-brand-600 hover:underline">
-            support@eshopee.com
+          <a href="mailto:support@shoppe.com" className="text-brand-600 hover:underline">
+            support@shoppe.com
           </a>{" "}
           for assistance.
         </p>

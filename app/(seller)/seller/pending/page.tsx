@@ -10,8 +10,8 @@ export default function PendingPage() {
         </p>
         <p className="text-xs text-text-secondary">
           Questions?{" "}
-          <a href="mailto:support@eshopee.com" className="text-brand-600 hover:underline">
-            support@eshopee.com
+          <a href="mailto:support@shoppe.com" className="text-brand-600 hover:underline">
+            support@shoppe.com
           </a>
         </p>
       </div>

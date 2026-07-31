@@ -39,7 +39,7 @@ export function Navbar({ cartBadge }: NavbarProps) {
           <Link href="/" className="flex-shrink-0 transition-opacity hover:opacity-80">
             <span className="text-white font-bold text-xl tracking-tight leading-none">
               11/7<br />
-              <span className="text-brand-100 text-sm font-semibold">Eshopee</span>
+              <span className="text-brand-100 text-sm font-semibold">Shoppe</span>
             </span>
           </Link>
 
@@ -105,7 +105,7 @@ export function Navbar({ cartBadge }: NavbarProps) {
 
         {/* Sub-nav */}
         <nav className="flex items-center gap-5 mt-2 pt-2 border-t border-white/10 text-xs text-white/80">
-          {["Download the App", "Sell on Eshopee", "Help Center", "Flash Deals"].map((item) => (
+          {["Download the App", "Sell on Shoppe", "Help Center", "Flash Deals"].map((item) => (
             <Link key={item} href="#" className="hover:text-white hover:underline transition-all duration-200">
               {item}
             </Link>

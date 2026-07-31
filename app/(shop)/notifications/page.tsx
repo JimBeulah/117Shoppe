@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/data/user"
 import { getNotifications } from "@/lib/data/notifications"
 import { markAllAsRead } from "@/lib/notifications/actions"
 
-export const metadata = { title: "Notifications | Eshopee" }
+export const metadata = { title: "Notifications | Shoppe" }
 
 interface Props {
   searchParams: Promise<{ page?: string }>
