@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useSocket } from '@/hooks/use-socket'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
@@ -15,20 +16,20 @@ interface Props {
 export function ChatWindow({ conversationId, currentUserId, displayName }: Props) {
   const { socket, connected } = useSocket()
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [loading, setLoading] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // Load initial messages from API
+  const { data, isLoading } = useQuery<ChatMessage[]>({
+    queryKey: ['conversations', conversationId, 'messages'],
+    queryFn: async () => {
+      const res = await fetch(`/api/conversations/${conversationId}/messages`)
+      return res.json()
+    },
+  })
+
   useEffect(() => {
-    setLoading(true)
-    fetch(`/api/conversations/${conversationId}/messages`)
-      .then(r => r.json())
-      .then((data: ChatMessage[]) => {
-        setMessages(data)
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
-  }, [conversationId])
+    if (data) setMessages(data)
+  }, [data])
 
   // Join socket room and subscribe to events
   useEffect(() => {
@@ -86,10 +87,10 @@ export function ChatWindow({ conversationId, currentUserId, displayName }: Props
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-bg-page">
-        {loading && (
+        {isLoading && (
           <p className="text-center text-sm text-text-secondary">Loading…</p>
         )}
-        {!loading && messages.length === 0 && (
+        {!isLoading && messages.length === 0 && (
           <p className="text-center text-sm text-text-secondary">
             Say hi to start the conversation!
           </p>

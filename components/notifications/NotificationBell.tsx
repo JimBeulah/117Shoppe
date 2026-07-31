@@ -1,20 +1,42 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Bell } from "lucide-react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useSocket } from "@/hooks/use-socket"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/Popover"
 import { NotificationRow } from "@/components/notifications/NotificationRow"
 import { markAsRead, markAllAsRead } from "@/lib/notifications/actions"
 import type { NotificationItem } from "@/types/notifications"
 
+interface RecentNotifications {
+  notifications: NotificationItem[]
+  unreadCount: number
+}
+
 export function NotificationBell() {
   const { socket } = useSocket()
+  const queryClient = useQueryClient()
   const [count, setCount] = useState(0)
   const [items, setItems] = useState<NotificationItem[]>([])
   const [open, setOpen] = useState(false)
-  const [loaded, setLoaded] = useState(false)
+
+  const { data } = useQuery<RecentNotifications>({
+    queryKey: ["notifications", "recent"],
+    queryFn: async () => {
+      const res = await fetch("/api/notifications?page=1")
+      return res.json()
+    },
+    enabled: open,
+    staleTime: 60 * 1000,
+  })
+
+  useEffect(() => {
+    if (!data) return
+    setItems(data.notifications.slice(0, 10))
+    setCount(data.unreadCount)
+  }, [data])
 
   useEffect(() => {
     if (!socket) return
@@ -24,6 +46,7 @@ export function NotificationBell() {
     }
     function handleNew(notification: NotificationItem) {
       setItems((prev) => [notification, ...prev].slice(0, 10))
+      queryClient.invalidateQueries({ queryKey: ["notifications", "recent"] })
     }
 
     socket.on("unread-notification-count", handleCount)
@@ -32,23 +55,10 @@ export function NotificationBell() {
       socket.off("unread-notification-count", handleCount)
       socket.off("notification", handleNew)
     }
-  }, [socket])
-
-  const loadRecent = useCallback(() => {
-    if (loaded) return
-    fetch("/api/notifications?page=1")
-      .then((r) => r.json())
-      .then((data) => {
-        setItems(data.notifications.slice(0, 10))
-        setCount(data.unreadCount)
-        setLoaded(true)
-      })
-      .catch(() => {})
-  }, [loaded])
+  }, [socket, queryClient])
 
   function handleOpenChange(next: boolean) {
     setOpen(next)
-    if (next) loadRecent()
   }
 
   function handleReadOne(id: string) {

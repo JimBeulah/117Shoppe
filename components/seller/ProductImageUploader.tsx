@@ -62,7 +62,10 @@ export default function ProductImageUploader({
             setUploadError(err.message)
           }}
           appearance={{
-            button: "bg-brand-600 hover:bg-brand-700 text-white text-sm px-4 py-2 rounded",
+            container: "flex flex-col items-start gap-1",
+            button:
+              "w-auto h-auto ut-ready:bg-brand-600 ut-uploading:bg-brand-400 ut-readying:bg-brand-400 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded transition-colors focus-within:ring-2 focus-within:ring-brand-500",
+            allowedContent: "text-xs text-text-secondary",
           }}
         />
       )}

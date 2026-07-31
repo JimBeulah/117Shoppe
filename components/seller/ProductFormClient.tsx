@@ -1,10 +1,14 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useForm, Controller } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useMutation } from "@tanstack/react-query"
 import VariantMatrixBuilder from "@/components/seller/VariantMatrixBuilder"
 import ProductImageUploader from "@/components/seller/ProductImageUploader"
 import { upsertProduct } from "@/lib/seller/actions"
+import { productFormSchema, type ProductFormValues } from "@/lib/seller/product-validations"
 import { slugify, crossProduct } from "@/lib/utils"
 import type { VariantOption, VariantCellData, CategoryItem } from "@/types/seller"
 
@@ -30,26 +34,15 @@ interface Props {
 
 export default function ProductFormClient({ categories, initial }: Props) {
   const router = useRouter()
-  const [isPending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
 
-  const parentCategories = categories.filter((c) => c.parentId === null)
-
-  const [name, setName] = useState(initial?.name ?? "")
-  const [slug, setSlug] = useState(initial?.slug ?? "")
-  const [description, setDescription] = useState(initial?.description ?? "")
-  const [parentCategoryId, setParentCategoryId] = useState<string>(() => {
+  const initialParentCategoryId = (() => {
     if (!initial?.categoryId) return ""
     const cat = categories.find((c) => c.id === initial.categoryId)
     if (!cat) return ""
     return cat.parentId ?? initial.categoryId
-  })
-  const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "")
-  const [price, setPrice] = useState(initial?.price?.toString() ?? "")
-  const [originalPrice, setOriginalPrice] = useState(initial?.originalPrice?.toString() ?? "")
-  const [images, setImages] = useState<string[]>(initial?.images ?? [])
-  const [stock, setStock] = useState(initial?.stock?.toString() ?? "0")
-  const [isActive, setIsActive] = useState(initial?.isActive ?? true)
+  })()
+
+  const [slugTouched, setSlugTouched] = useState(Boolean(initial?.id))
   const [hasVariants, setHasVariants] = useState(
     Boolean(initial?.variantOptions && (initial.variantOptions as VariantOption[]).length > 0)
   )
@@ -66,17 +59,42 @@ export default function ProductFormClient({ categories, initial }: Props) {
     )
   })
 
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<ProductFormValues>({
+    resolver: zodResolver(productFormSchema),
+    defaultValues: {
+      name: initial?.name ?? "",
+      slug: initial?.slug ?? "",
+      description: initial?.description ?? "",
+      parentCategoryId: initialParentCategoryId,
+      categoryId: initial?.categoryId ?? "",
+      price: initial?.price ?? 0,
+      originalPrice: initial?.originalPrice ?? undefined,
+      images: initial?.images ?? [],
+      stock: initial?.stock ?? 0,
+      isActive: initial?.isActive ?? true,
+    },
+  })
+
+  const parentCategoryId = watch("parentCategoryId")
+  const parentCategories = categories.filter((c) => c.parentId === null)
   const childCategories = categories.filter((c) => c.parentId === parentCategoryId)
 
   function handleNameChange(value: string) {
-    setName(value)
-    if (!initial?.id) setSlug(slugify(value))
+    setValue("name", value)
+    if (!slugTouched) setValue("slug", slugify(value))
   }
 
   function handleParentChange(parentId: string) {
-    setParentCategoryId(parentId)
+    setValue("parentCategoryId", parentId)
     const newChildren = categories.filter((c) => c.parentId === parentId)
-    setCategoryId(newChildren.length > 0 ? "" : parentId)
+    setValue("categoryId", newChildren.length > 0 ? "" : parentId)
   }
 
   function handleVariantToggle(checked: boolean) {
@@ -87,49 +105,46 @@ export default function ProductFormClient({ categories, initial }: Props) {
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
+  const mutation = useMutation({
+    mutationFn: async (values: ProductFormValues) => {
+      const variants = hasVariants
+        ? crossProduct(variantOptions).map((key) => ({
+            name: key,
+            price: variantMatrix[key]?.price ?? 0,
+            stock: variantMatrix[key]?.stock ?? 0,
+            sku: variantMatrix[key]?.sku || undefined,
+            image: variantMatrix[key]?.image || undefined,
+          }))
+        : []
 
-    const variants = hasVariants
-      ? crossProduct(variantOptions).map((key) => ({
-          name: key,
-          price: variantMatrix[key]?.price ?? 0,
-          stock: variantMatrix[key]?.stock ?? 0,
-          sku: variantMatrix[key]?.sku || undefined,
-          image: variantMatrix[key]?.image || undefined,
-        }))
-      : []
-
-    startTransition(async () => {
       const result = await upsertProduct({
         id: initial?.id,
-        name,
-        slug,
-        description,
-        categoryId,
-        price: parseFloat(price) || 0,
-        originalPrice: originalPrice ? parseFloat(originalPrice) : undefined,
-        images,
-        stock: parseInt(stock, 10) || 0,
+        name: values.name,
+        slug: values.slug,
+        description: values.description,
+        categoryId: values.categoryId,
+        price: values.price,
+        originalPrice: values.originalPrice,
+        images: values.images,
+        stock: values.stock,
         variantOptions: hasVariants ? variantOptions : null,
         variants,
-        isActive,
+        isActive: values.isActive,
       })
 
-      if (result?.error) {
-        setError(result.error)
-      } else {
-        router.push("/seller/products")
-      }
-    })
-  }
+      if (result?.error) throw new Error(result.error)
+      return result
+    },
+    onSuccess: () => router.push("/seller/products"),
+  })
+
+  const onSubmit = (values: ProductFormValues) => mutation.mutate(values)
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
-      {error && (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
+      {mutation.isError && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
-          {error}
+          {mutation.error.message}
         </p>
       )}
 
@@ -141,35 +156,36 @@ export default function ProductFormClient({ categories, initial }: Props) {
           <label className="block text-sm font-medium text-text-primary">Product Name *</label>
           <input
             type="text"
-            value={name}
+            {...register("name")}
             onChange={(e) => handleNameChange(e.target.value)}
-            required
             maxLength={200}
             className="w-full border border-border-default rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
+          {errors.name && <p className="text-xs text-red-600">{errors.name.message}</p>}
         </div>
 
         <div className="space-y-1">
           <label className="block text-sm font-medium text-text-primary">URL Slug *</label>
           <input
             type="text"
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            required
-            pattern="[a-z0-9-]+"
+            {...register("slug")}
+            onChange={(e) => {
+              setSlugTouched(true)
+              setValue("slug", e.target.value)
+            }}
             className="w-full border border-border-default rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
+          {errors.slug && <p className="text-xs text-red-600">{errors.slug.message}</p>}
         </div>
 
         <div className="space-y-1">
           <label className="block text-sm font-medium text-text-primary">Description *</label>
           <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            required
+            {...register("description")}
             rows={4}
             className="w-full border border-border-default rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
           />
+          {errors.description && <p className="text-xs text-red-600">{errors.description.message}</p>}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -178,7 +194,6 @@ export default function ProductFormClient({ categories, initial }: Props) {
             <select
               value={parentCategoryId}
               onChange={(e) => handleParentChange(e.target.value)}
-              required
               className="w-full border border-border-default rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               <option value="">Select category</option>
@@ -188,14 +203,15 @@ export default function ProductFormClient({ categories, initial }: Props) {
                 </option>
               ))}
             </select>
+            {errors.parentCategoryId && (
+              <p className="text-xs text-red-600">{errors.parentCategoryId.message}</p>
+            )}
           </div>
           {childCategories.length > 0 && (
             <div className="space-y-1">
               <label className="block text-sm font-medium text-text-primary">Subcategory *</label>
               <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                required
+                {...register("categoryId")}
                 className="w-full border border-border-default rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               >
                 <option value="">Select subcategory</option>
@@ -205,6 +221,7 @@ export default function ProductFormClient({ categories, initial }: Props) {
                   </option>
                 ))}
               </select>
+              {errors.categoryId && <p className="text-xs text-red-600">{errors.categoryId.message}</p>}
             </div>
           )}
         </div>
@@ -214,13 +231,12 @@ export default function ProductFormClient({ categories, initial }: Props) {
             <label className="block text-sm font-medium text-text-primary">Price (₱) *</label>
             <input
               type="number"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              required
+              {...register("price", { valueAsNumber: true })}
               min={0}
               step="0.01"
               className="w-full border border-border-default rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
+            {errors.price && <p className="text-xs text-red-600">{errors.price.message}</p>}
           </div>
           <div className="space-y-1">
             <label className="block text-sm font-medium text-text-primary">
@@ -229,12 +245,14 @@ export default function ProductFormClient({ categories, initial }: Props) {
             </label>
             <input
               type="number"
-              value={originalPrice}
-              onChange={(e) => setOriginalPrice(e.target.value)}
+              {...register("originalPrice", {
+                setValueAs: (v) => (v === "" ? undefined : parseFloat(v)),
+              })}
               min={0}
               step="0.01"
               className="w-full border border-border-default rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
+            {errors.originalPrice && <p className="text-xs text-red-600">{errors.originalPrice.message}</p>}
           </div>
         </div>
       </section>
@@ -243,11 +261,17 @@ export default function ProductFormClient({ categories, initial }: Props) {
       <section className="bg-white rounded-lg border border-border-default p-5 space-y-3">
         <h2 className="font-semibold text-text-primary">Product Images</h2>
         <p className="text-xs text-text-secondary">Up to 9 images. First image is the cover.</p>
-        <ProductImageUploader
-          endpoint="productImages"
-          value={images}
-          onChange={setImages}
-          maxFiles={9}
+        <Controller
+          control={control}
+          name="images"
+          render={({ field }) => (
+            <ProductImageUploader
+              endpoint="productImages"
+              value={field.value}
+              onChange={field.onChange}
+              maxFiles={9}
+            />
+          )}
         />
       </section>
 
@@ -271,12 +295,11 @@ export default function ProductFormClient({ categories, initial }: Props) {
             <label className="block text-sm font-medium text-text-primary">Stock *</label>
             <input
               type="number"
-              value={stock}
-              onChange={(e) => setStock(e.target.value)}
-              required={!hasVariants}
+              {...register("stock", { valueAsNumber: true })}
               min={0}
               className="w-32 border border-border-default rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
+            {errors.stock && <p className="text-xs text-red-600">{errors.stock.message}</p>}
           </div>
         ) : (
           <VariantMatrixBuilder
@@ -291,12 +314,7 @@ export default function ProductFormClient({ categories, initial }: Props) {
       {/* Publish */}
       <section className="bg-white rounded-lg border border-border-default p-5">
         <label className="flex items-center gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={isActive}
-            onChange={(e) => setIsActive(e.target.checked)}
-            className="rounded border-border-default"
-          />
+          <input type="checkbox" {...register("isActive")} className="rounded border-border-default" />
           <div>
             <p className="text-sm font-medium text-text-primary">Publish product</p>
             <p className="text-xs text-text-secondary">
@@ -309,10 +327,10 @@ export default function ProductFormClient({ categories, initial }: Props) {
       <div className="flex items-center gap-3">
         <button
           type="submit"
-          disabled={isPending}
+          disabled={mutation.isPending}
           className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded text-sm transition-colors"
         >
-          {isPending ? "Saving…" : initial?.id ? "Save Changes" : "Create Product"}
+          {mutation.isPending ? "Saving…" : initial?.id ? "Save Changes" : "Create Product"}
         </button>
         <a href="/seller/products" className="text-sm text-text-secondary hover:underline">
           Cancel
