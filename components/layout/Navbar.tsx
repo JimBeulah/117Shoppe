@@ -80,6 +80,7 @@ export function Navbar({ cartBadge }: NavbarProps) {
               when="signed-out"
               fallback={
                 <UserButton
+                  userProfileMode="navigation"
                   userProfileUrl="/account/profile"
                   appearance={{
                     elements: {
