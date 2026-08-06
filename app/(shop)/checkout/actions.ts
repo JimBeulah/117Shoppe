@@ -68,7 +68,7 @@ export async function placeOrder(
           paymentMethod,
           total: orderTotal,
           shippingFee: SHIPPING_FEE,
-          status: "PENDING",
+          status: "PAID",
           items: {
             create: items.map((item) => ({
               productId: item.productId,

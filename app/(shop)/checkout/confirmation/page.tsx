@@ -105,7 +105,7 @@ export default async function ConfirmationPage({ searchParams }: Props) {
           </div>
           <div className="flex justify-between text-text-secondary mt-1">
             <span>Order Status</span>
-            <span className="font-medium text-yellow-600">Pending</span>
+            <span className="font-medium text-blue-600">Confirmed</span>
           </div>
         </div>
 
