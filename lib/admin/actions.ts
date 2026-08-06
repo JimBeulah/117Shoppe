@@ -303,6 +303,7 @@ export async function createFlashSale(
 
   revalidatePath("/admin/flash-sales")
   revalidatePath("/")
+  revalidatePath("/flash-sale")
   return { id: flashSale.id }
 }
 
@@ -339,6 +340,7 @@ export async function updateFlashSale(
 
   revalidatePath("/admin/flash-sales")
   revalidatePath("/")
+  revalidatePath("/flash-sale")
   return {}
 }
 
@@ -350,6 +352,7 @@ export async function deleteFlashSale(id: string): Promise<{ error?: string }> {
   ])
   revalidatePath("/admin/flash-sales")
   revalidatePath("/")
+  revalidatePath("/flash-sale")
   return {}
 }
 

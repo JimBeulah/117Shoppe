@@ -2,6 +2,7 @@ import { cache } from "react"
 import { prisma } from "@/lib/db"
 import type { Prisma } from "@/lib/generated/prisma/client"
 import type { CatalogFilters, CatalogResult, CategoryItem, ProductCard, ProductDetail, ShopDetail } from "@/types"
+import { activeFlashSaleItemInclude, mapFlashSale } from "@/lib/data/flashSale"
 
 const PAGE_SIZE = 20
 
@@ -79,7 +80,10 @@ export const searchProducts = cache(async (
   const [products, total] = await Promise.all([
     prisma.product.findMany({
       where,
-      include: { shop: { select: { name: true, slug: true } } },
+      include: {
+        shop: { select: { name: true, slug: true } },
+        flashSaleItems: activeFlashSaleItemInclude(),
+      },
       orderBy: toOrderBy(filters.sort),
       skip: (filters.page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
@@ -87,7 +91,7 @@ export const searchProducts = cache(async (
     prisma.product.count({ where }),
   ])
 
-  return { products, total, pageSize: PAGE_SIZE }
+  return { products: products.map(mapFlashSale), total, pageSize: PAGE_SIZE }
 })
 
 export const getParentCategories = cache(async (): Promise<CategoryItem[]> => {
@@ -131,7 +135,10 @@ export const getCategoryWithProducts = cache(async (
   const [products, total] = await Promise.all([
     prisma.product.findMany({
       where,
-      include: { shop: { select: { name: true, slug: true } } },
+      include: {
+        shop: { select: { name: true, slug: true } },
+        flashSaleItems: activeFlashSaleItemInclude(),
+      },
       orderBy: toOrderBy(filters.sort),
       skip: (filters.page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
@@ -148,7 +155,7 @@ export const getCategoryWithProducts = cache(async (
       parent: category.parent,
       children: category.children,
     },
-    products,
+    products: products.map(mapFlashSale),
     total,
     pageSize: PAGE_SIZE,
   }
@@ -174,11 +181,14 @@ export const getProductBySlug = cache(async (slug: string): Promise<ProductDetai
           parent: { select: { id: true, name: true, slug: true } },
         },
       },
+      flashSaleItems: activeFlashSaleItemInclude(),
       _count: { select: { reviews: true } },
     },
   })
 
   if (!product) return null
+
+  const { isFlashSale, flashSalePrice, flashSaleEndsAt } = mapFlashSale(product)
 
   return {
     id: product.id,
@@ -187,8 +197,9 @@ export const getProductBySlug = cache(async (slug: string): Promise<ProductDetai
     description: product.description,
     price: product.price,
     originalPrice: product.originalPrice,
-    flashSalePrice: product.flashSalePrice,
-    isFlashSale: product.isFlashSale,
+    flashSalePrice,
+    isFlashSale,
+    flashSaleEndsAt,
     stock: product.stock,
     sold: product.sold,
     images: product.images,
@@ -245,7 +256,10 @@ export const getShopProducts = cache(async (
   const [products, total] = await Promise.all([
     prisma.product.findMany({
       where,
-      include: { shop: { select: { name: true, slug: true } } },
+      include: {
+        shop: { select: { name: true, slug: true } },
+        flashSaleItems: activeFlashSaleItemInclude(),
+      },
       orderBy: toOrderBy(filters.sort),
       skip: (filters.page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
@@ -253,5 +267,5 @@ export const getShopProducts = cache(async (
     prisma.product.count({ where }),
   ])
 
-  return { products, total, pageSize: PAGE_SIZE }
+  return { products: products.map(mapFlashSale), total, pageSize: PAGE_SIZE }
 })

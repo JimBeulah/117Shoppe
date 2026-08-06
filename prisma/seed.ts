@@ -117,15 +117,15 @@ async function main() {
   // ── Products ───────────────────────────────────────────────────────────────
   const productData = [
     // Electronics – TechPro Store
-    { name: 'Wireless Earbuds Pro X1', slug: 'wireless-earbuds-pro-x1', description: 'Premium wireless earbuds with ANC and 30-hour battery life.', price: 1299, originalPrice: 1999, stock: 500, sold: 3420, images: ['https://placehold.co/400x400/7C3AED/white?text=Earbuds'], categoryId: electronics.id, shopId: shops[0].id, rating: 4.8, reviewCount: 892, isFlashSale: true, flashSalePrice: 999, flashSaleEndsAt: flashSaleEnd, isTrending: true },
-    { name: 'Smart Watch Series 7', slug: 'smart-watch-series-7', description: 'Health monitoring smartwatch with AMOLED display.', price: 2499, originalPrice: 3999, stock: 200, sold: 1205, images: ['https://placehold.co/400x400/7C3AED/white?text=Watch'], categoryId: electronics.id, shopId: shops[0].id, rating: 4.7, reviewCount: 534, isFlashSale: true, flashSalePrice: 1999, flashSaleEndsAt: flashSaleEnd, isTrending: true },
+    { name: 'Wireless Earbuds Pro X1', slug: 'wireless-earbuds-pro-x1', description: 'Premium wireless earbuds with ANC and 30-hour battery life.', price: 1299, originalPrice: 1999, stock: 500, sold: 3420, images: ['https://placehold.co/400x400/7C3AED/white?text=Earbuds'], categoryId: electronics.id, shopId: shops[0].id, rating: 4.8, reviewCount: 892, isTrending: true },
+    { name: 'Smart Watch Series 7', slug: 'smart-watch-series-7', description: 'Health monitoring smartwatch with AMOLED display.', price: 2499, originalPrice: 3999, stock: 200, sold: 1205, images: ['https://placehold.co/400x400/7C3AED/white?text=Watch'], categoryId: electronics.id, shopId: shops[0].id, rating: 4.7, reviewCount: 534, isTrending: true },
     { name: 'USB-C Hub 7-in-1', slug: 'usb-c-hub-7in1', description: 'Multi-port hub: HDMI 4K, 3x USB-A, SD card, PD charging.', price: 799, originalPrice: 1200, stock: 800, sold: 4100, images: ['https://placehold.co/400x400/7C3AED/white?text=USB+Hub'], categoryId: electronics.id, shopId: shops[0].id, rating: 4.6, reviewCount: 1203, isTrending: true },
     { name: 'Mechanical Keyboard TKL', slug: 'mechanical-keyboard-tkl', description: 'Tenkeyless mechanical keyboard with RGB backlight, blue switches.', price: 1899, originalPrice: 2500, stock: 150, sold: 867, images: ['https://placehold.co/400x400/6D28D9/white?text=Keyboard'], categoryId: electronics.id, shopId: shops[0].id, rating: 4.9, reviewCount: 421, isTrending: false },
-    { name: 'Portable Power Bank 20000mAh', slug: 'power-bank-20000mah', description: 'Fast-charge 20000mAh power bank, dual USB-C output.', price: 899, originalPrice: 1500, stock: 600, sold: 5600, images: ['https://placehold.co/400x400/6D28D9/white?text=Power+Bank'], categoryId: electronics.id, shopId: shops[0].id, rating: 4.7, reviewCount: 2341, isFlashSale: true, flashSalePrice: 699, flashSaleEndsAt: flashSaleEnd },
+    { name: 'Portable Power Bank 20000mAh', slug: 'power-bank-20000mah', description: 'Fast-charge 20000mAh power bank, dual USB-C output.', price: 899, originalPrice: 1500, stock: 600, sold: 5600, images: ['https://placehold.co/400x400/6D28D9/white?text=Power+Bank'], categoryId: electronics.id, shopId: shops[0].id, rating: 4.7, reviewCount: 2341 },
     { name: 'Webcam 1080P HD', slug: 'webcam-1080p-hd', description: 'Full HD webcam with built-in mic and auto light correction.', price: 1199, originalPrice: 1800, stock: 300, sold: 1890, images: ['https://placehold.co/400x400/A78BFA/white?text=Webcam'], categoryId: electronics.id, shopId: shops[0].id, rating: 4.5, reviewCount: 673 },
 
     // Fashion – Fashion Hub
-    { name: 'Oversized Cotton Tee — Black', slug: 'oversized-cotton-tee-black', description: 'Premium 100% cotton oversized fit tee. Unisex.', price: 349, originalPrice: 599, stock: 1000, sold: 8900, images: ['https://placehold.co/400x400/EC4899/white?text=Tee'], categoryId: fashion.id, shopId: shops[1].id, rating: 4.9, reviewCount: 3421, isFlashSale: true, flashSalePrice: 249, flashSaleEndsAt: flashSaleEnd, isTrending: true },
+    { name: 'Oversized Cotton Tee — Black', slug: 'oversized-cotton-tee-black', description: 'Premium 100% cotton oversized fit tee. Unisex.', price: 349, originalPrice: 599, stock: 1000, sold: 8900, images: ['https://placehold.co/400x400/EC4899/white?text=Tee'], categoryId: fashion.id, shopId: shops[1].id, rating: 4.9, reviewCount: 3421, isTrending: true },
     { name: 'High-Waist Cargo Pants', slug: 'high-waist-cargo-pants', description: 'Y2K style cargo pants with adjustable waist.', price: 799, originalPrice: 1200, stock: 500, sold: 4300, images: ['https://placehold.co/400x400/EC4899/white?text=Cargo'], categoryId: fashion.id, shopId: shops[1].id, rating: 4.7, reviewCount: 1890, isTrending: true },
     { name: 'Linen Button-Down Shirt', slug: 'linen-button-down-shirt', description: 'Breathable linen shirt, perfect for tropical weather.', price: 599, originalPrice: 899, stock: 700, sold: 2100, images: ['https://placehold.co/400x400/EC4899/white?text=Shirt'], categoryId: fashion.id, shopId: shops[1].id, rating: 4.6, reviewCount: 987 },
     { name: 'Chunky Platform Sneakers', slug: 'chunky-platform-sneakers', description: 'Retro chunky sole sneakers, available in 5 colors.', price: 1499, originalPrice: 2200, stock: 300, sold: 1560, images: ['https://placehold.co/400x400/F59E0B/white?text=Sneakers'], categoryId: fashion.id, shopId: shops[1].id, rating: 4.8, reviewCount: 734, isTrending: true },
@@ -134,17 +134,17 @@ async function main() {
     // Home & Living – Home Decor PH
     { name: 'Rattan Round Mirror 60cm', slug: 'rattan-round-mirror-60cm', description: 'Handwoven rattan frame wall mirror, boho aesthetic.', price: 1299, originalPrice: 1800, stock: 150, sold: 890, images: ['https://placehold.co/400x400/10B981/white?text=Mirror'], categoryId: homeLiving.id, shopId: shops[2].id, rating: 4.9, reviewCount: 456, isTrending: true },
     { name: 'Scented Soy Candle Set', slug: 'scented-soy-candle-set', description: 'Set of 3 handpoured soy candles: Lavender, Vanilla, Sandalwood.', price: 599, originalPrice: 899, stock: 500, sold: 2300, images: ['https://placehold.co/400x400/10B981/white?text=Candles'], categoryId: homeLiving.id, shopId: shops[2].id, rating: 4.8, reviewCount: 1102, isTrending: true },
-    { name: 'Ceramic Mug Set of 4', slug: 'ceramic-mug-set-4', description: 'Minimalist matte ceramic mugs, 350ml, microwave safe.', price: 799, originalPrice: 1200, stock: 300, sold: 1780, images: ['https://placehold.co/400x400/10B981/white?text=Mugs'], categoryId: homeLiving.id, shopId: shops[2].id, rating: 4.7, reviewCount: 892, isFlashSale: true, flashSalePrice: 599, flashSaleEndsAt: flashSaleEnd },
+    { name: 'Ceramic Mug Set of 4', slug: 'ceramic-mug-set-4', description: 'Minimalist matte ceramic mugs, 350ml, microwave safe.', price: 799, originalPrice: 1200, stock: 300, sold: 1780, images: ['https://placehold.co/400x400/10B981/white?text=Mugs'], categoryId: homeLiving.id, shopId: shops[2].id, rating: 4.7, reviewCount: 892 },
     { name: 'String Fairy Lights 10m', slug: 'string-fairy-lights-10m', description: '10-meter USB LED string lights, warm white, dimmable.', price: 299, originalPrice: 499, stock: 1000, sold: 6700, images: ['https://placehold.co/400x400/10B981/white?text=Lights'], categoryId: homeLiving.id, shopId: shops[2].id, rating: 4.6, reviewCount: 3421 },
 
     // Beauty – Beauty PH
-    { name: 'Niacinamide 10% Serum 30ml', slug: 'niacinamide-10-serum-30ml', description: 'Oil-control and pore-minimizing serum with zinc.', price: 449, originalPrice: 699, stock: 800, sold: 9800, images: ['https://placehold.co/400x400/EC4899/white?text=Serum'], categoryId: beauty.id, shopId: shops[3].id, rating: 4.9, reviewCount: 4532, isFlashSale: true, flashSalePrice: 349, flashSaleEndsAt: flashSaleEnd, isTrending: true },
+    { name: 'Niacinamide 10% Serum 30ml', slug: 'niacinamide-10-serum-30ml', description: 'Oil-control and pore-minimizing serum with zinc.', price: 449, originalPrice: 699, stock: 800, sold: 9800, images: ['https://placehold.co/400x400/EC4899/white?text=Serum'], categoryId: beauty.id, shopId: shops[3].id, rating: 4.9, reviewCount: 4532, isTrending: true },
     { name: 'SPF 50 Sunscreen PA++++', slug: 'spf50-sunscreen', description: 'Lightweight no-white-cast sunscreen, water resistant.', price: 599, originalPrice: 899, stock: 600, sold: 7200, images: ['https://placehold.co/400x400/EC4899/white?text=SPF50'], categoryId: beauty.id, shopId: shops[3].id, rating: 4.8, reviewCount: 3210, isTrending: true },
     { name: 'Lip Tint Set 6 Colors', slug: 'lip-tint-set-6-colors', description: 'Long-lasting water tint in 6 shades, transfer-proof.', price: 399, originalPrice: 650, stock: 1200, sold: 5600, images: ['https://placehold.co/400x400/EC4899/white?text=Lip+Tint'], categoryId: beauty.id, shopId: shops[3].id, rating: 4.7, reviewCount: 2890 },
 
     // Sports – Sports Top PH
     { name: 'Yoga Mat Non-Slip 6mm', slug: 'yoga-mat-non-slip-6mm', description: 'Extra thick 6mm TPE yoga mat, alignment lines, carry strap.', price: 799, originalPrice: 1200, stock: 400, sold: 3200, images: ['https://placehold.co/400x400/10B981/white?text=Yoga+Mat'], categoryId: sports.id, shopId: shops[4].id, rating: 4.8, reviewCount: 1456, isTrending: true },
-    { name: 'Resistance Bands Set 5pcs', slug: 'resistance-bands-set-5pcs', description: '5 resistance levels, latex-free, includes door anchor.', price: 499, originalPrice: 799, stock: 600, sold: 4100, images: ['https://placehold.co/400x400/10B981/white?text=Bands'], categoryId: sports.id, shopId: shops[4].id, rating: 4.7, reviewCount: 2103, isFlashSale: true, flashSalePrice: 399, flashSaleEndsAt: flashSaleEnd },
+    { name: 'Resistance Bands Set 5pcs', slug: 'resistance-bands-set-5pcs', description: '5 resistance levels, latex-free, includes door anchor.', price: 499, originalPrice: 799, stock: 600, sold: 4100, images: ['https://placehold.co/400x400/10B981/white?text=Bands'], categoryId: sports.id, shopId: shops[4].id, rating: 4.7, reviewCount: 2103 },
     { name: 'Stainless Steel Water Bottle 1L', slug: 'stainless-steel-water-bottle-1l', description: 'Double-wall insulated, keeps cold 24h, hot 12h.', price: 699, originalPrice: 999, stock: 700, sold: 5800, images: ['https://placehold.co/400x400/10B981/white?text=Bottle'], categoryId: sports.id, shopId: shops[4].id, rating: 4.9, reviewCount: 3201, isTrending: true },
   ]
 
@@ -153,6 +153,40 @@ async function main() {
       where: { slug },
       update: { categoryId: rest.categoryId },
       create: { slug, ...rest },
+    })
+  }
+
+  // ── Flash Sale ─────────────────────────────────────────────────────────────
+  const flashSaleSalePrices: Record<string, number> = {
+    'wireless-earbuds-pro-x1': 999,
+    'smart-watch-series-7': 1999,
+    'power-bank-20000mah': 699,
+    'oversized-cotton-tee-black': 249,
+    'ceramic-mug-set-4': 599,
+    'niacinamide-10-serum-30ml': 349,
+    'resistance-bands-set-5pcs': 399,
+  }
+
+  const existingFlashSale = await prisma.flashSale.findFirst({ where: { title: "Today's Flash Sale" } })
+  if (!existingFlashSale) {
+    const flashSaleProducts = await prisma.product.findMany({
+      where: { slug: { in: Object.keys(flashSaleSalePrices) } },
+      select: { id: true, slug: true, stock: true },
+    })
+    await prisma.flashSale.create({
+      data: {
+        title: "Today's Flash Sale",
+        startsAt: new Date(),
+        endsAt: flashSaleEnd,
+        isActive: true,
+        items: {
+          create: flashSaleProducts.map((p) => ({
+            productId: p.id,
+            salePrice: flashSaleSalePrices[p.slug],
+            stock: Math.min(p.stock, 50),
+          })),
+        },
+      },
     })
   }
 

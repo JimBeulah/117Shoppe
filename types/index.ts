@@ -159,6 +159,7 @@ export interface ProductDetail {
   price: number
   originalPrice: number | null
   flashSalePrice: number | null
+  flashSaleEndsAt: Date | null
   isFlashSale: boolean
   stock: number
   sold: number

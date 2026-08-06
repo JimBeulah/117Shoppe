@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
+import { activeFlashSaleItemInclude, effectivePrice } from "@/lib/data/flashSale"
 import { validateVoucherCode, type VoucherValidationResult } from "@/lib/data/voucher"
 import { splitProportionally } from "@/lib/voucher"
 import { createNotification } from "@/lib/notifications/create"
@@ -16,13 +17,19 @@ export async function applyVoucher(code: string): Promise<VoucherValidationResul
 
   const cart = await prisma.cart.findUnique({
     where: { userId: user.id },
-    include: { items: { include: { product: true, variant: true } } },
+    include: {
+      items: {
+        include: {
+          product: { include: { flashSaleItems: activeFlashSaleItemInclude() } },
+          variant: true,
+        },
+      },
+    },
   })
   if (!cart || cart.items.length === 0) return { error: "Cart is empty" }
 
   const subtotal = cart.items.reduce((sum, item) => {
-    const price = item.variant ? item.variant.price : item.product.price
-    return sum + price * item.quantity
+    return sum + effectivePrice(item.product, item.variant) * item.quantity
   }, 0)
 
   return validateVoucherCode(code, subtotal)
@@ -44,7 +51,7 @@ export async function placeOrder(
     include: {
       items: {
         include: {
-          product: { include: { shop: true } },
+          product: { include: { shop: true, flashSaleItems: activeFlashSaleItemInclude() } },
           variant: true,
         },
       },
@@ -73,10 +80,7 @@ export async function placeOrder(
 
   const groupEntries = Array.from(shopGroups.entries())
   const itemsTotals = groupEntries.map(([, items]) =>
-    items.reduce((sum, item) => {
-      const price = item.variant ? item.variant.price : item.product.price
-      return sum + price * item.quantity
-    }, 0)
+    items.reduce((sum, item) => sum + effectivePrice(item.product, item.variant) * item.quantity, 0)
   )
   const cartSubtotal = itemsTotals.reduce((a, b) => a + b, 0)
 
@@ -117,7 +121,7 @@ export async function placeOrder(
               productId: item.productId,
               variantId: item.variantId ?? null,
               quantity: item.quantity,
-              price: item.variant ? item.variant.price : item.product.price,
+              price: effectivePrice(item.product, item.variant),
             })),
           },
         },

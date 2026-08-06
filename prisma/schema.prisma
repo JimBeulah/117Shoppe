@@ -123,9 +123,6 @@ model Product {
   images          String[]
   rating          Float     @default(0)
   reviewCount     Int       @default(0)
-  isFlashSale     Boolean   @default(false)
-  flashSalePrice  Float?
-  flashSaleEndsAt DateTime?
   isTrending      Boolean   @default(false)
   isActive        Boolean   @default(true)
   categoryId      String
