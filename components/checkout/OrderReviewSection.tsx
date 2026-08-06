@@ -1,21 +1,29 @@
 import Image from "next/image"
 import { formatPrice } from "@/lib/utils"
+import { splitProportionally } from "@/lib/voucher"
 import type { CartGroup } from "@/types"
 
 const SHIPPING_FEE = 49
 
 interface OrderReviewSectionProps {
   groups: CartGroup[]
+  discountAmount?: number
 }
 
-export function OrderReviewSection({ groups }: OrderReviewSectionProps) {
+export function OrderReviewSection({ groups, discountAmount = 0 }: OrderReviewSectionProps) {
+  const subtotals = groups.map((group) =>
+    group.items.reduce((sum, item) => {
+      const price = item.variant?.price ?? item.product.price
+      return sum + price * item.quantity
+    }, 0)
+  )
+  const groupDiscounts = splitProportionally(discountAmount, subtotals)
+
   return (
     <div className="space-y-4">
-      {groups.map((group) => {
-        const subtotal = group.items.reduce((sum, item) => {
-          const price = item.variant?.price ?? item.product.price
-          return sum + price * item.quantity
-        }, 0)
+      {groups.map((group, groupIndex) => {
+        const subtotal = subtotals[groupIndex]
+        const groupDiscount = groupDiscounts[groupIndex]
 
         return (
           <div key={group.shopId} className="bg-white rounded-lg border border-border overflow-hidden">
@@ -57,9 +65,17 @@ export function OrderReviewSection({ groups }: OrderReviewSectionProps) {
                 <span>Shipping</span>
                 <span>{formatPrice(SHIPPING_FEE)}</span>
               </div>
+              {groupDiscount > 0 && (
+                <div className="flex justify-between text-xs text-text-secondary">
+                  <span>Voucher discount</span>
+                  <span className="text-green-600">-{formatPrice(groupDiscount)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm font-semibold text-text-primary">
                 <span>Shop subtotal</span>
-                <span className="text-accent-sale">{formatPrice(subtotal + SHIPPING_FEE)}</span>
+                <span className="text-accent-sale">
+                  {formatPrice(subtotal + SHIPPING_FEE - groupDiscount)}
+                </span>
               </div>
             </div>
           </div>

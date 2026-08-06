@@ -34,6 +34,7 @@ export async function getOrderById(orderId: string): Promise<OrderConfirmation |
       shop: true,
       address: true,
       payment: true,
+      voucher: true,
       items: {
         include: {
           product: true,
@@ -50,6 +51,7 @@ export async function getOrderById(orderId: string): Promise<OrderConfirmation |
     status: order.status,
     total: order.total,
     shippingFee: order.shippingFee,
+    discountAmount: order.discountAmount,
     paymentMethod: order.paymentMethod,
     createdAt: order.createdAt,
     shop: { name: order.shop.name, slug: order.shop.slug },
@@ -78,5 +80,6 @@ export async function getOrderById(orderId: string): Promise<OrderConfirmation |
           amount: order.payment.amount,
         }
       : null,
+    voucher: order.voucher ? { code: order.voucher.code, title: order.voucher.title } : null,
   }
 }

@@ -214,6 +214,7 @@ model Order {
   status        OrderStatus @default(PENDING)
   total         Float
   shippingFee   Float       @default(0)
+  discountAmount Float      @default(0)
   paymentMethod String?
   addressId     String
   voucherId     String?

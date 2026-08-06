@@ -88,6 +88,12 @@ export default async function ConfirmationPage({ searchParams }: Props) {
               <span>Shipping</span>
               <span>{formatPrice(order.shippingFee)}</span>
             </div>
+            {order.discountAmount > 0 && (
+              <div className="flex justify-between text-xs text-text-secondary">
+                <span>Voucher {order.voucher ? `(${order.voucher.code})` : ""}</span>
+                <span className="text-green-600">-{formatPrice(order.discountAmount)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm font-bold text-text-primary">
               <span>Total</span>
               <span className="text-accent-sale">{formatPrice(order.total)}</span>

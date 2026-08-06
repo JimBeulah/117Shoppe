@@ -3,14 +3,35 @@
 import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
+import { validateVoucherCode, type VoucherValidationResult } from "@/lib/data/voucher"
+import { splitProportionally } from "@/lib/voucher"
 import { createNotification } from "@/lib/notifications/create"
 import { buildNewOrderCopy } from "@/lib/notifications/copy"
 
 const SHIPPING_FEE = 49
 
+export async function applyVoucher(code: string): Promise<VoucherValidationResult> {
+  const user = await getCurrentUser()
+  if (!user) return { error: "Unauthorized" }
+
+  const cart = await prisma.cart.findUnique({
+    where: { userId: user.id },
+    include: { items: { include: { product: true, variant: true } } },
+  })
+  if (!cart || cart.items.length === 0) return { error: "Cart is empty" }
+
+  const subtotal = cart.items.reduce((sum, item) => {
+    const price = item.variant ? item.variant.price : item.product.price
+    return sum + price * item.quantity
+  }, 0)
+
+  return validateVoucherCode(code, subtotal)
+}
+
 export async function placeOrder(
   addressId: string,
-  paymentMethod: "COD"
+  paymentMethod: "COD",
+  voucherCode?: string
 ): Promise<{ orderIds?: string[]; error?: string }> {
   const user = await getCurrentUser()
   if (!user) return { error: "Unauthorized" }
@@ -50,14 +71,34 @@ export async function placeOrder(
     shopGroups.get(shopId)!.push(item)
   }
 
-  const orderIds: string[] = []
-
-  for (const [shopId, items] of shopGroups) {
-    const itemsTotal = items.reduce((sum, item) => {
+  const groupEntries = Array.from(shopGroups.entries())
+  const itemsTotals = groupEntries.map(([, items]) =>
+    items.reduce((sum, item) => {
       const price = item.variant ? item.variant.price : item.product.price
       return sum + price * item.quantity
     }, 0)
-    const orderTotal = itemsTotal + SHIPPING_FEE
+  )
+  const cartSubtotal = itemsTotals.reduce((a, b) => a + b, 0)
+
+  let voucherId: string | null = null
+  let shopDiscounts = itemsTotals.map(() => 0)
+
+  if (voucherCode) {
+    const result = await validateVoucherCode(voucherCode, cartSubtotal)
+    if (result.error || !result.voucher || result.discountAmount == null) {
+      return { error: result.error ?? "Invalid voucher code" }
+    }
+    voucherId = result.voucher.id
+    shopDiscounts = splitProportionally(result.discountAmount, itemsTotals)
+  }
+
+  const orderIds: string[] = []
+
+  for (let i = 0; i < groupEntries.length; i++) {
+    const [shopId, items] = groupEntries[i]
+    const itemsTotal = itemsTotals[i]
+    const discountAmount = shopDiscounts[i]
+    const orderTotal = itemsTotal - discountAmount + SHIPPING_FEE
 
     const order = await prisma.$transaction(async (tx) => {
       const newOrder = await tx.order.create({
@@ -68,6 +109,8 @@ export async function placeOrder(
           paymentMethod,
           total: orderTotal,
           shippingFee: SHIPPING_FEE,
+          discountAmount,
+          voucherId,
           status: "PAID",
           items: {
             create: items.map((item) => ({

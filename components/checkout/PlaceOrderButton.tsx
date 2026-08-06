@@ -11,14 +11,22 @@ interface PlaceOrderButtonProps {
   addressId: string
   total: number
   shopCount: number
+  voucherCode?: string | null
+  discountAmount?: number
 }
 
-export function PlaceOrderButton({ addressId, total, shopCount }: PlaceOrderButtonProps) {
+export function PlaceOrderButton({
+  addressId,
+  total,
+  shopCount,
+  voucherCode = null,
+  discountAmount = 0,
+}: PlaceOrderButtonProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState("")
 
-  const grandTotal = total + shopCount * SHIPPING_FEE
+  const grandTotal = total - discountAmount + shopCount * SHIPPING_FEE
 
   function handlePlaceOrder() {
     if (!addressId) {
@@ -27,7 +35,7 @@ export function PlaceOrderButton({ addressId, total, shopCount }: PlaceOrderButt
     }
     setError("")
     startTransition(async () => {
-      const result = await placeOrder(addressId, "COD")
+      const result = await placeOrder(addressId, "COD", voucherCode ?? undefined)
       if (result.error) {
         setError(result.error)
         return
@@ -44,6 +52,12 @@ export function PlaceOrderButton({ addressId, total, shopCount }: PlaceOrderButt
           <span>Shipping ({shopCount} shop{shopCount > 1 ? "s" : ""})</span>
           <span>{formatPrice(shopCount * SHIPPING_FEE)}</span>
         </div>
+        {discountAmount > 0 && (
+          <div className="flex justify-between text-text-secondary">
+            <span>Voucher discount</span>
+            <span className="text-green-600">-{formatPrice(discountAmount)}</span>
+          </div>
+        )}
         <div className="flex justify-between font-semibold text-text-primary border-t border-border pt-2">
           <span>Total Payment</span>
           <span className="text-accent-sale text-base">{formatPrice(grandTotal)}</span>

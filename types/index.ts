@@ -43,6 +43,15 @@ export interface VoucherItem {
   expiresAt: Date
 }
 
+export interface AppliedVoucher {
+  id: string
+  code: string
+  title: string
+  discountType: 'PERCENT' | 'FIXED'
+  discountValue: number
+  maxDiscount: number | null
+}
+
 export interface CatalogFilters {
   sort: 'best_seller' | 'price_asc' | 'price_desc' | 'newest'
   priceMin: number
@@ -122,6 +131,7 @@ export interface OrderConfirmation {
   status: string
   total: number
   shippingFee: number
+  discountAmount: number
   paymentMethod: string | null
   createdAt: Date
   shop: { name: string; slug: string }
@@ -138,6 +148,7 @@ export interface OrderConfirmation {
     status: string
     amount: number
   } | null
+  voucher: { code: string; title: string } | null
 }
 
 export interface ProductDetail {
