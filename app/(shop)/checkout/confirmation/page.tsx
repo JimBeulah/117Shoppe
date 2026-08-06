@@ -45,7 +45,7 @@ export default async function ConfirmationPage({ searchParams }: Props) {
             {order.address.fullName} · {order.address.phone}
           </p>
           <p className="text-sm text-text-secondary mt-0.5">
-            {order.address.street}, {order.address.city}, {order.address.province}{" "}
+            {order.address.street}, {order.address.barangay}, {order.address.city}, {order.address.province}{" "}
             {order.address.postalCode}
           </p>
         </div>

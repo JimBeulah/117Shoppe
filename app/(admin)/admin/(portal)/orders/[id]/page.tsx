@@ -75,7 +75,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
             {order.address.fullName} · {order.address.phone}
           </p>
           <p className="text-sm text-text-secondary">
-            {order.address.street}, {order.address.city}, {order.address.province}{" "}
+            {order.address.street}, {order.address.barangay}, {order.address.city}, {order.address.province}{" "}
             {order.address.postalCode}
           </p>
         </div>

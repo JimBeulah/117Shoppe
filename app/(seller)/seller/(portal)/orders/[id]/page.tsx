@@ -60,7 +60,7 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
         <p className="text-sm text-text-primary">{order.address.fullName}</p>
         <p className="text-sm text-text-secondary">{order.address.phone}</p>
         <p className="text-sm text-text-secondary">
-          {order.address.street}, {order.address.city}, {order.address.province}{" "}
+          {order.address.street}, {order.address.barangay}, {order.address.city}, {order.address.province}{" "}
           {order.address.postalCode}
         </p>
       </section>

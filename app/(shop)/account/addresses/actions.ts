@@ -8,6 +8,7 @@ export interface AddressFormData {
   fullName: string
   phone: string
   street: string
+  barangay: string
   city: string
   province: string
   postalCode: string

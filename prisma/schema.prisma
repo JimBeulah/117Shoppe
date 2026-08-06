@@ -248,6 +248,7 @@ model Address {
   fullName   String
   phone      String
   street     String
+  barangay   String @default("")
   city       String
   province   String
   postalCode String

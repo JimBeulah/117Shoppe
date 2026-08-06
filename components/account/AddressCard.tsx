@@ -61,7 +61,7 @@ export function AddressCard({ address }: AddressCardProps) {
               )}
             </div>
             <p className="text-sm text-text-secondary mt-0.5">
-              {address.street}, {address.city}, {address.province} {address.postalCode}
+              {address.street}, {address.barangay}, {address.city}, {address.province} {address.postalCode}
             </p>
           </div>
         </div>

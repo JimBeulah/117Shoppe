@@ -53,7 +53,7 @@ export function AddressSelector({ addresses, selectedId, onSelect }: AddressSele
                 )}
               </div>
               <p className="text-xs text-text-secondary mt-0.5">
-                {address.street}, {address.city}, {address.province} {address.postalCode}
+                {address.street}, {address.barangay}, {address.city}, {address.province} {address.postalCode}
               </p>
             </div>
           </label>
