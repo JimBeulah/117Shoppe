@@ -57,6 +57,24 @@ export function buildNewOrderCopy(orderId: string, buyerName: string) {
   }
 }
 
+export function buildBuyerCancelledCopy(orderId: string, buyerName: string) {
+  return {
+    type: NotificationType.ORDER_STATUS,
+    title: "Order cancelled by buyer",
+    message: `${buyerName} cancelled order ${shortId(orderId)}.`,
+    link: `/seller/orders/${orderId}`,
+  }
+}
+
+export function buildOrderReceivedCopy(orderId: string, buyerName: string) {
+  return {
+    type: NotificationType.ORDER_STATUS,
+    title: "Order marked as received",
+    message: `${buyerName} confirmed receipt of order ${shortId(orderId)}.`,
+    link: `/seller/orders/${orderId}`,
+  }
+}
+
 export function buildNewMessageCopy(senderName: string) {
   return {
     type: NotificationType.NEW_MESSAGE,

@@ -1,4 +1,5 @@
 import Image from "next/image"
+import Link from "next/link"
 import { RateButton } from "@/components/reviews/RateButton"
 import type { OrderWithItems } from "@/types"
 
@@ -86,6 +87,15 @@ export function OrderCard({ order, reviewedProductIds }: OrderCardProps) {
         <span className="font-medium text-text-primary">
           Total: ₱{order.total.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
         </span>
+      </div>
+
+      <div className="px-4 py-3 border-t border-border-default flex justify-end">
+        <Link
+          href={`/account/orders/${order.id}`}
+          className="text-sm text-brand-600 hover:underline font-medium"
+        >
+          View Order Details →
+        </Link>
       </div>
     </div>
   )

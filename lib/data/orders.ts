@@ -24,3 +24,22 @@ export const getBuyerOrders = cache(async (userId: string): Promise<OrderWithIte
     },
   })
 })
+
+export async function getBuyerOrderDetail(orderId: string, userId: string) {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      shop: { select: { name: true, slug: true } },
+      address: true,
+      items: {
+        include: {
+          product: { select: { id: true, name: true, slug: true, images: true } },
+          variant: { select: { name: true } },
+        },
+      },
+      shipment: true,
+    },
+  })
+  if (!order || order.userId !== userId) return null
+  return order
+}
