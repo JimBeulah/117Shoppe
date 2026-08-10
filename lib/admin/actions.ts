@@ -57,6 +57,18 @@ export async function rejectShop(shopId: string, reason: string): Promise<{ erro
   return {}
 }
 
+export async function updateShopCommissionRate(shopId: string, rate: number): Promise<{ error?: string }> {
+  await assertAdmin()
+  if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+    return { error: "Commission rate must be between 0 and 100" }
+  }
+
+  await prisma.shop.update({ where: { id: shopId }, data: { commissionRate: rate } })
+
+  revalidatePath("/admin/sellers")
+  return {}
+}
+
 // ─── Users ────────────────────────────────────────────────────────────────────
 
 export async function promoteToSeller(userId: string, clerkId: string): Promise<{ error?: string }> {
@@ -365,11 +377,16 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
   await assertAdmin()
   if (!VALID_ORDER_STATUSES.includes(status)) return { error: "Invalid status" }
 
-  const order = await prisma.order.update({
-    where: { id: orderId },
-    data: { status },
-    select: { userId: true },
-  })
+  const updates: any[] = [prisma.order.update({ where: { id: orderId }, data: { status } })]
+  if (status === "CANCELLED" || status === "REFUNDED") {
+    updates.push(
+      prisma.commissionEntry.updateMany({
+        where: { orderId, status: { in: ["PENDING", "AVAILABLE"] } },
+        data: { status: "REVERSED" },
+      })
+    )
+  }
+  const [order] = await prisma.$transaction(updates)
 
   const copy = buildOrderStatusCopy(orderId, status)
   if (copy) await createNotification({ userId: order.userId, ...copy })

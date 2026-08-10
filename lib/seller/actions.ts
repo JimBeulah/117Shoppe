@@ -7,6 +7,8 @@ import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
 import { createNotification } from "@/lib/notifications/create"
 import { buildOrderStatusCopy, buildReviewReplyCopy } from "@/lib/notifications/copy"
+import { reconcileEligibleCommissions } from "@/lib/payouts/reconcile"
+import { MIN_PAYOUT_AMOUNT } from "@/lib/payouts/config"
 import type { UpsertProductData } from "@/types/seller"
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
@@ -76,6 +78,40 @@ export async function updateShop(formData: FormData): Promise<{ error?: string }
 
   revalidatePath("/seller/settings")
   revalidatePath(`/shop/${shop.slug}`)
+  return {}
+}
+
+// ─── Payouts ──────────────────────────────────────────────────────────────────
+
+export async function requestPayout(): Promise<{ error?: string }> {
+  const shop = await getVerifiedShop()
+  if (!shop) return { error: "Unauthorized" }
+
+  await reconcileEligibleCommissions(shop.id)
+
+  const openPayout = await prisma.payout.findFirst({
+    where: { shopId: shop.id, status: { in: ["REQUESTED", "PROCESSING"] } },
+  })
+  if (openPayout) return { error: "You already have a payout request in progress" }
+
+  const availableEntries = await prisma.commissionEntry.findMany({
+    where: { shopId: shop.id, status: "AVAILABLE" },
+    select: { id: true, netAmount: true },
+  })
+  const amount = availableEntries.reduce((sum, e) => sum + e.netAmount, 0)
+  if (amount < MIN_PAYOUT_AMOUNT) {
+    return { error: `You need at least ₱${MIN_PAYOUT_AMOUNT} available to request a payout` }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const payout = await tx.payout.create({ data: { shopId: shop.id, amount } })
+    await tx.commissionEntry.updateMany({
+      where: { id: { in: availableEntries.map((e) => e.id) } },
+      data: { payoutId: payout.id },
+    })
+  })
+
+  revalidatePath("/seller/payouts")
   return {}
 }
 

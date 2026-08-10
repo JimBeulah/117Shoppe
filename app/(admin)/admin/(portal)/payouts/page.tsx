@@ -1,48 +1,48 @@
 import Link from "next/link"
-import { getAdminShops } from "@/lib/admin/queries"
-import { approveShop, rejectShop, updateShopCommissionRate } from "@/lib/admin/actions"
-import ShopStatusBadge from "@/components/admin/ShopStatusBadge"
-import { SearchInput } from "@/components/ui/SearchInput"
+import { getAdminPayouts } from "@/lib/admin/queries"
+import { markPayoutPaid, rejectPayoutRequest } from "@/lib/admin/payouts"
 
-export const metadata = { title: "Admin — Sellers" }
+export const metadata = { title: "Admin — Payouts" }
 
 const STATUS_TABS = [
   { label: "All", value: null },
-  { label: "Pending", value: "PENDING" },
-  { label: "Active", value: "ACTIVE" },
+  { label: "Requested", value: "REQUESTED" },
+  { label: "Processing", value: "PROCESSING" },
+  { label: "Paid", value: "PAID" },
   { label: "Rejected", value: "REJECTED" },
 ]
 
-interface Props {
-  searchParams: Promise<{ page?: string; status?: string; search?: string }>
+const STATUS_COLORS: Record<string, string> = {
+  REQUESTED: "bg-yellow-100 text-yellow-700",
+  PROCESSING: "bg-blue-100 text-blue-700",
+  PAID: "bg-green-100 text-green-700",
+  REJECTED: "bg-red-100 text-red-700",
 }
 
-export default async function AdminSellersPage({ searchParams }: Props) {
-  const { page: pageStr, status: statusParam, search } = await searchParams
+interface Props {
+  searchParams: Promise<{ page?: string; status?: string }>
+}
+
+export default async function AdminPayoutsPage({ searchParams }: Props) {
+  const { page: pageStr, status: statusParam } = await searchParams
   const page = Math.max(1, parseInt(pageStr ?? "1", 10))
   const statusFilter = statusParam ?? null
-  const searchQuery = search ?? null
 
-  const { shops, total, pageSize } = await getAdminShops(page, statusFilter, searchQuery)
+  const { payouts, total, pageSize } = await getAdminPayouts(page, statusFilter)
   const totalPages = Math.ceil(total / pageSize)
 
   function buildHref(overrides: { status?: string | null; page?: number }) {
     const params = new URLSearchParams()
     const s = "status" in overrides ? overrides.status : statusFilter
     const p = overrides.page ?? page
-    const q = searchQuery
     if (s) params.set("status", s)
-    if (q) params.set("search", q)
     if (p > 1) params.set("page", String(p))
-    return `/admin/sellers${params.toString() ? `?${params}` : ""}`
+    return `/admin/payouts${params.toString() ? `?${params}` : ""}`
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-xl font-bold text-text-primary">Sellers</h1>
-        <SearchInput placeholder="Search shops by name or email..." />
-      </div>
+      <h1 className="text-xl font-bold text-text-primary">Payouts</h1>
 
       <div className="flex gap-1 border-b border-border-default">
         {STATUS_TABS.map((tab) => {
@@ -62,9 +62,9 @@ export default async function AdminSellersPage({ searchParams }: Props) {
         })}
       </div>
 
-      {shops.length === 0 ? (
+      {payouts.length === 0 ? (
         <div className="bg-white rounded-lg border border-border-default p-12 text-center">
-          <p className="text-text-secondary text-sm">No shops found.</p>
+          <p className="text-text-secondary text-sm">No payout requests found.</p>
         </div>
       ) : (
         <div className="bg-white rounded-lg border border-border-default overflow-hidden">
@@ -72,93 +72,73 @@ export default async function AdminSellersPage({ searchParams }: Props) {
             <thead className="border-b border-border-default bg-bg-page">
               <tr>
                 <th className="text-left px-4 py-3 text-text-secondary font-medium">Shop</th>
-                <th className="text-left px-4 py-3 text-text-secondary font-medium">Owner</th>
+                <th className="text-left px-4 py-3 text-text-secondary font-medium">Amount</th>
                 <th className="text-left px-4 py-3 text-text-secondary font-medium">Status</th>
-                <th className="text-left px-4 py-3 text-text-secondary font-medium">Commission</th>
-                <th className="text-left px-4 py-3 text-text-secondary font-medium">Registered</th>
+                <th className="text-left px-4 py-3 text-text-secondary font-medium">Requested</th>
+                <th className="text-left px-4 py-3 text-text-secondary font-medium">Note</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border-default">
-              {shops.map((shop) => (
-                <tr key={shop.id} className="hover:bg-brand-50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-text-primary">{shop.name}</td>
-                  <td className="px-4 py-3 text-text-secondary">{shop.owner.email}</td>
+              {payouts.map((payout) => (
+                <tr key={payout.id} className="hover:bg-brand-50 transition-colors">
+                  <td className="px-4 py-3 font-medium text-text-primary">{payout.shop.name}</td>
+                  <td className="px-4 py-3 text-text-primary">₱{payout.amount.toFixed(2)}</td>
                   <td className="px-4 py-3">
-                    <ShopStatusBadge status={shop.status} />
-                    {shop.rejectionReason && (
-                      <p className="text-xs text-red-500 mt-1 max-w-[200px] truncate">{shop.rejectionReason}</p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <form className="flex items-center gap-1">
-                      <input type="hidden" name="shopId" value={shop.id} />
-                      <input
-                        name="rate"
-                        type="number"
-                        min={0}
-                        max={100}
-                        step={0.5}
-                        defaultValue={shop.commissionRate}
-                        className="text-xs border border-border-default rounded px-2 py-1 w-16"
-                      />
-                      <span className="text-xs text-text-secondary">%</span>
-                      <button
-                        type="submit"
-                        formAction={async (fd: FormData) => {
-                          "use server"
-                          await updateShopCommissionRate(
-                            fd.get("shopId") as string,
-                            parseFloat(fd.get("rate") as string)
-                          )
-                        }}
-                        className="text-xs px-2 py-1 border border-border-default rounded hover:bg-brand-50 cursor-pointer"
-                      >
-                        Save
-                      </button>
-                    </form>
+                    <span className={`text-xs px-2 py-1 rounded ${STATUS_COLORS[payout.status] ?? "bg-gray-100 text-gray-700"}`}>
+                      {payout.status}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-text-secondary">
-                    {new Date(shop.createdAt).toLocaleDateString("en-PH")}
+                    {new Date(payout.requestedAt).toLocaleDateString("en-PH")}
+                  </td>
+                  <td className="px-4 py-3 text-text-secondary max-w-[200px] truncate">
+                    {payout.referenceNote ?? "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {shop.status !== "ACTIVE" && (
+                    {(payout.status === "REQUESTED" || payout.status === "PROCESSING") && (
+                      <div className="flex items-center justify-end gap-2">
                         <form>
-                          <input type="hidden" name="shopId" value={shop.id} />
-                          <button
-                            type="submit"
-                            formAction={async (fd: FormData) => {
-                              "use server"
-                              await approveShop(fd.get("shopId") as string)
-                            }}
-                            className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 cursor-pointer"
-                          >
-                            Approve
-                          </button>
-                        </form>
-                      )}
-                      {shop.status !== "REJECTED" && (
-                        <form className="flex items-center gap-1">
-                          <input type="hidden" name="shopId" value={shop.id} />
+                          <input type="hidden" name="payoutId" value={payout.id} />
                           <input
-                            name="reason"
-                            placeholder="Reason"
-                            className="text-xs border border-border-default rounded px-2 py-1 w-32"
+                            name="referenceNote"
+                            placeholder="Reference #"
+                            className="text-xs border border-border-default rounded px-2 py-1 w-28 mr-1"
                           />
                           <button
                             type="submit"
                             formAction={async (fd: FormData) => {
                               "use server"
-                              await rejectShop(fd.get("shopId") as string, fd.get("reason") as string)
+                              await markPayoutPaid(
+                                fd.get("payoutId") as string,
+                                fd.get("referenceNote") as string
+                              )
+                            }}
+                            className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 cursor-pointer"
+                          >
+                            Mark Paid
+                          </button>
+                        </form>
+                        <form className="flex items-center gap-1">
+                          <input type="hidden" name="payoutId" value={payout.id} />
+                          <input
+                            name="reason"
+                            placeholder="Reason"
+                            className="text-xs border border-border-default rounded px-2 py-1 w-28"
+                          />
+                          <button
+                            type="submit"
+                            formAction={async (fd: FormData) => {
+                              "use server"
+                              await rejectPayoutRequest(fd.get("payoutId") as string, fd.get("reason") as string)
                             }}
                             className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 cursor-pointer"
                           >
                             Reject
                           </button>
                         </form>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -1,0 +1,3 @@
+export const PAYOUT_BUFFER_DAYS = 7
+export const DEFAULT_COMMISSION_RATE = 10
+export const MIN_PAYOUT_AMOUNT = 500

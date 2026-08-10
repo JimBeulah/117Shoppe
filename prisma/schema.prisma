@@ -58,6 +58,20 @@ enum ShopStatus {
   REJECTED
 }
 
+enum CommissionStatus {
+  PENDING
+  AVAILABLE
+  PAID
+  REVERSED
+}
+
+enum PayoutStatus {
+  REQUESTED
+  PROCESSING
+  PAID
+  REJECTED
+}
+
 // ─── Phase 1 Models (seeded) ─────────────────────────────────────────────────
 
 model User {
@@ -101,13 +115,16 @@ model Shop {
   createdAt      DateTime @default(now())
   status         ShopStatus @default(PENDING)
   rejectionReason String?
+  commissionRate Float    @default(10)
 
-  owner         User           @relation(fields: [ownerId], references: [id])
-  products      Product[]
-  orders        Order[]
-  reviewReplies ReviewReply[]
-  conversations Conversation[]
-  followers     ShopFollow[]
+  owner             User              @relation(fields: [ownerId], references: [id])
+  products          Product[]
+  orders            Order[]
+  reviewReplies     ReviewReply[]
+  conversations     Conversation[]
+  followers         ShopFollow[]
+  commissionEntries CommissionEntry[]
+  payouts           Payout[]
 }
 
 model Category {
@@ -234,10 +251,11 @@ model Order {
   shop     Shop        @relation(fields: [shopId], references: [id])
   address  Address     @relation(fields: [addressId], references: [id])
   voucher  Voucher?    @relation(fields: [voucherId], references: [id])
-  items    OrderItem[]
-  payment  Payment?
-  shipment Shipment?
-  refund   Refund?
+  items           OrderItem[]
+  payment         Payment?
+  shipment        Shipment?
+  refund          Refund?
+  commissionEntry CommissionEntry?
 }
 
 model OrderItem {
@@ -303,6 +321,43 @@ model Refund {
   payment     Payment @relation(fields: [paymentId], references: [id])
   order       Order   @relation(fields: [orderId], references: [id])
   initiatedBy User    @relation(fields: [initiatedByUserId], references: [id])
+}
+
+model CommissionEntry {
+  id               String           @id @default(cuid())
+  orderId          String           @unique
+  shopId           String
+  orderTotal       Float
+  commissionRate   Float
+  commissionAmount Float
+  netAmount        Float
+  status           CommissionStatus @default(PENDING)
+  eligibleAt       DateTime
+  payoutId         String?
+  createdAt        DateTime         @default(now())
+
+  order  Order   @relation(fields: [orderId], references: [id])
+  shop   Shop    @relation(fields: [shopId], references: [id])
+  payout Payout? @relation(fields: [payoutId], references: [id])
+
+  @@index([shopId, status])
+}
+
+model Payout {
+  id                 String       @id @default(cuid())
+  shopId             String
+  amount             Float
+  status             PayoutStatus @default(REQUESTED)
+  requestedAt        DateTime     @default(now())
+  processedByUserId  String?
+  processedAt        DateTime?
+  referenceNote      String?
+  createdAt          DateTime     @default(now())
+
+  shop    Shop              @relation(fields: [shopId], references: [id])
+  entries CommissionEntry[]
+
+  @@index([shopId, status])
 }
 
 model Shipment {

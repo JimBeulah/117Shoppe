@@ -49,6 +49,10 @@ export async function issueRefund(orderId: string, reason: string): Promise<{ er
       }),
       prisma.payment.update({ where: { id: order.payment.id }, data: { status: "REFUNDED" } }),
       prisma.order.update({ where: { id: order.id }, data: { status: "REFUNDED" } }),
+      prisma.commissionEntry.updateMany({
+        where: { orderId: order.id, status: { in: ["PENDING", "AVAILABLE"] } },
+        data: { status: "REVERSED" },
+      }),
     ])
 
     const copy = buildOrderStatusCopy(order.id, "REFUNDED")

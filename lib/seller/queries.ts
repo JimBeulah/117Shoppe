@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
+import { reconcileEligibleCommissions } from "@/lib/payouts/reconcile"
 import type { DashboardStats } from "@/types/seller"
 import type { ShopReviewWithProduct } from "@/types"
+import type { SellerBalance, SellerPayoutRow } from "@/types/payouts"
 
 export async function getCurrentShop() {
   const user = await getCurrentUser()
@@ -145,6 +147,61 @@ export async function getAllCategories() {
     select: { id: true, name: true, parentId: true },
     orderBy: { name: "asc" },
   })
+}
+
+export async function getSellerBalance(shopId: string): Promise<SellerBalance> {
+  await reconcileEligibleCommissions(shopId)
+
+  const [pendingAgg, availableAgg, paidAgg, openPayout] = await Promise.all([
+    prisma.commissionEntry.aggregate({
+      where: { shopId, status: "PENDING" },
+      _sum: { netAmount: true },
+    }),
+    prisma.commissionEntry.aggregate({
+      where: { shopId, status: "AVAILABLE" },
+      _sum: { netAmount: true },
+    }),
+    prisma.commissionEntry.aggregate({
+      where: { shopId, status: "PAID" },
+      _sum: { netAmount: true },
+    }),
+    prisma.payout.findFirst({
+      where: { shopId, status: { in: ["REQUESTED", "PROCESSING"] } },
+      select: { id: true },
+    }),
+  ])
+
+  return {
+    pending: pendingAgg._sum.netAmount ?? 0,
+    available: availableAgg._sum.netAmount ?? 0,
+    lifetimePaid: paidAgg._sum.netAmount ?? 0,
+    hasOpenPayout: !!openPayout,
+  }
+}
+
+export async function getSellerPayouts(
+  shopId: string,
+  page: number
+): Promise<{ payouts: SellerPayoutRow[]; total: number; pageSize: number }> {
+  const PAGE_SIZE = 20
+  const [payouts, total] = await Promise.all([
+    prisma.payout.findMany({
+      where: { shopId },
+      orderBy: { requestedAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      select: {
+        id: true,
+        amount: true,
+        status: true,
+        requestedAt: true,
+        processedAt: true,
+        referenceNote: true,
+      },
+    }),
+    prisma.payout.count({ where: { shopId } }),
+  ])
+  return { payouts, total, pageSize: PAGE_SIZE }
 }
 
 export async function getShopReviews(shopId: string): Promise<ShopReviewWithProduct[]> {

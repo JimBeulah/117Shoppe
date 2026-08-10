@@ -75,6 +75,24 @@ export function buildOrderReceivedCopy(orderId: string, buyerName: string) {
   }
 }
 
+export function buildPayoutPaidCopy(payoutId: string, amount: number) {
+  return {
+    type: NotificationType.ORDER_STATUS,
+    title: "Payout sent",
+    message: `Your payout of ₱${amount.toFixed(2)} (${shortId(payoutId)}) has been marked as paid.`,
+    link: "/seller/payouts",
+  }
+}
+
+export function buildPayoutRejectedCopy(payoutId: string, reason: string) {
+  return {
+    type: NotificationType.ORDER_STATUS,
+    title: "Payout request rejected",
+    message: `Your payout request ${shortId(payoutId)} was rejected: ${reason}`,
+    link: "/seller/payouts",
+  }
+}
+
 export function buildNewMessageCopy(senderName: string) {
   return {
     type: NotificationType.NEW_MESSAGE,

@@ -29,6 +29,7 @@ export interface AdminShopRow {
   status: string
   createdAt: Date
   rejectionReason: string | null
+  commissionRate: number
   owner: { email: string }
 }
 

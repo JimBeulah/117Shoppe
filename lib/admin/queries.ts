@@ -11,6 +11,7 @@ import type {
   AdminUserRow,
   AdminVoucherRow,
 } from "@/types/admin"
+import type { AdminPayoutRow } from "@/types/payouts"
 
 const PAGE_SIZE = 20
 
@@ -117,12 +118,44 @@ export async function getAdminShops(
         status: true,
         createdAt: true,
         rejectionReason: true,
+        commissionRate: true,
         owner: { select: { email: true } },
       },
     }),
     prisma.shop.count({ where }),
   ])
   return { shops, total, pageSize: PAGE_SIZE }
+}
+
+export async function getAdminPayouts(
+  page: number,
+  statusFilter: string | null
+): Promise<{ payouts: AdminPayoutRow[]; total: number; pageSize: number }> {
+  await assertAdmin()
+  const VALID_PAYOUT_STATUSES = ["REQUESTED", "PROCESSING", "PAID", "REJECTED"]
+  const where: any = {}
+  if (statusFilter && VALID_PAYOUT_STATUSES.includes(statusFilter)) {
+    where.status = statusFilter
+  }
+  const [payouts, total] = await Promise.all([
+    prisma.payout.findMany({
+      where,
+      orderBy: { requestedAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      select: {
+        id: true,
+        amount: true,
+        status: true,
+        requestedAt: true,
+        processedAt: true,
+        referenceNote: true,
+        shop: { select: { name: true } },
+      },
+    }),
+    prisma.payout.count({ where }),
+  ])
+  return { payouts, total, pageSize: PAGE_SIZE }
 }
 
 export async function getAdminUsers(
