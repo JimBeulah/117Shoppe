@@ -4,6 +4,7 @@ import { useTransition, useState } from "react"
 import { useRouter } from "next/navigation"
 import { placeOrder } from "@/app/(shop)/checkout/actions"
 import { formatPrice } from "@/lib/utils"
+import type { PaymentMethod } from "@/components/checkout/PaymentMethodSelector"
 
 const SHIPPING_FEE = 49
 
@@ -13,6 +14,7 @@ interface PlaceOrderButtonProps {
   shopCount: number
   voucherCode?: string | null
   discountAmount?: number
+  paymentMethod: PaymentMethod
 }
 
 export function PlaceOrderButton({
@@ -21,6 +23,7 @@ export function PlaceOrderButton({
   shopCount,
   voucherCode = null,
   discountAmount = 0,
+  paymentMethod,
 }: PlaceOrderButtonProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -35,10 +38,17 @@ export function PlaceOrderButton({
     }
     setError("")
     startTransition(async () => {
-      const result = await placeOrder(addressId, "COD", voucherCode ?? undefined)
-      if (result.error) {
+      const result = await placeOrder(addressId, paymentMethod, voucherCode ?? undefined)
+      if (result.error && !result.orderIds) {
         setError(result.error)
         return
+      }
+      if (result.checkoutUrl) {
+        window.location.href = result.checkoutUrl
+        return
+      }
+      if (result.error) {
+        setError(result.error)
       }
       const firstOrderId = result.orderIds?.[0]
       router.push(`/checkout/confirmation?orderId=${firstOrderId}`)
@@ -66,7 +76,7 @@ export function PlaceOrderButton({
 
       <div className="text-xs text-text-secondary flex items-center gap-1.5">
         <span className="w-5 h-5 rounded-full border-2 border-brand-300 flex items-center justify-center text-brand-600 font-bold text-[10px]">₱</span>
-        Cash on Delivery (COD)
+        {paymentMethod === "COD" ? "Cash on Delivery (COD)" : "Pay Online via PayMongo"}
       </div>
 
       {error && <p className="text-xs text-accent-sale">{error}</p>}
@@ -76,7 +86,7 @@ export function PlaceOrderButton({
         disabled={isPending || !addressId}
         className="w-full py-3 rounded-lg bg-brand-600 text-white font-semibold text-sm hover:bg-brand-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        {isPending ? "Placing Order…" : "Place Order"}
+        {isPending ? "Placing Order…" : paymentMethod === "COD" ? "Place Order" : "Proceed to Payment"}
       </button>
     </div>
   )

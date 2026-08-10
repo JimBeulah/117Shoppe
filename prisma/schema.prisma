@@ -36,6 +36,17 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum PaymentProvider {
+  COD
+  PAYMONGO
+}
+
+enum RefundStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
 enum CoinType {
   EARNED
   SPENT
@@ -75,6 +86,7 @@ model User {
   coinLogs           Coin[]
   shopFollows        ShopFollow[]
   buyerConversations Conversation[]   @relation("BuyerConversations")
+  refundsInitiated   Refund[]
 }
 
 model Shop {
@@ -225,6 +237,7 @@ model Order {
   items    OrderItem[]
   payment  Payment?
   shipment Shipment?
+  refund   Refund?
 }
 
 model OrderItem {
@@ -257,15 +270,39 @@ model Address {
 }
 
 model Payment {
-  id        String        @id @default(cuid())
-  orderId   String        @unique
-  method    String
-  status    PaymentStatus @default(PENDING)
-  amount    Float
-  reference String?
-  paidAt    DateTime?
+  id                String          @id @default(cuid())
+  orderId           String          @unique
+  method            String
+  provider          PaymentProvider @default(COD)
+  status            PaymentStatus   @default(PENDING)
+  amount            Float
+  reference         String?
+  checkoutSessionId String?
+  externalPaymentId String?
+  metadata          Json?
+  paidAt            DateTime?
 
-  order Order @relation(fields: [orderId], references: [id])
+  order  Order   @relation(fields: [orderId], references: [id])
+  refund Refund?
+
+  @@index([checkoutSessionId])
+}
+
+model Refund {
+  id                String       @id @default(cuid())
+  paymentId         String       @unique
+  orderId           String       @unique
+  amount            Float
+  status            RefundStatus @default(PENDING)
+  reason            String?
+  initiatedByUserId String
+  gatewayRefundId   String?
+  createdAt         DateTime     @default(now())
+  processedAt       DateTime?
+
+  payment     Payment @relation(fields: [paymentId], references: [id])
+  order       Order   @relation(fields: [orderId], references: [id])
+  initiatedBy User    @relation(fields: [initiatedByUserId], references: [id])
 }
 
 model Shipment {

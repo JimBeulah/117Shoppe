@@ -7,7 +7,7 @@ import { getCurrentUser } from "@/lib/data/user"
 import { createNotification } from "@/lib/notifications/create"
 import { buildOrderStatusCopy } from "@/lib/notifications/copy"
 
-async function assertAdmin() {
+export async function assertAdmin() {
   const user = await getCurrentUser()
   if (!user || user.role !== "ADMIN") throw new Error("Unauthorized")
 }

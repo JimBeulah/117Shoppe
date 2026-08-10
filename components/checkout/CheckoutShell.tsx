@@ -5,6 +5,7 @@ import { AddressSelector } from "@/components/checkout/AddressSelector"
 import { OrderReviewSection } from "@/components/checkout/OrderReviewSection"
 import { VoucherInput, type AppliedVoucherState } from "@/components/checkout/VoucherInput"
 import { PlaceOrderButton } from "@/components/checkout/PlaceOrderButton"
+import { PaymentMethodSelector, type PaymentMethod } from "@/components/checkout/PaymentMethodSelector"
 import type { AddressItem, CartGroup } from "@/types"
 
 interface CheckoutShellProps {
@@ -16,6 +17,7 @@ export function CheckoutShell({ addresses, groups }: CheckoutShellProps) {
   const defaultAddress = addresses.find((a) => a.isDefault) ?? addresses[0]
   const [selectedAddressId, setSelectedAddressId] = useState(defaultAddress?.id ?? "")
   const [applied, setApplied] = useState<AppliedVoucherState | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("COD")
 
   const subtotal = groups.reduce((acc, group) =>
     acc + group.items.reduce((sum, item) => {
@@ -32,6 +34,7 @@ export function CheckoutShell({ addresses, groups }: CheckoutShellProps) {
           onSelect={setSelectedAddressId}
         />
         <VoucherInput applied={applied} onApply={setApplied} onRemove={() => setApplied(null)} />
+        <PaymentMethodSelector value={paymentMethod} onChange={setPaymentMethod} />
         <OrderReviewSection groups={groups} discountAmount={applied?.discountAmount ?? 0} />
       </div>
       <PlaceOrderButton
@@ -40,6 +43,7 @@ export function CheckoutShell({ addresses, groups }: CheckoutShellProps) {
         shopCount={groups.length}
         voucherCode={applied?.voucher.code ?? null}
         discountAmount={applied?.discountAmount ?? 0}
+        paymentMethod={paymentMethod}
       />
     </div>
   )

@@ -8,6 +8,7 @@ import { validateVoucherCode, type VoucherValidationResult } from "@/lib/data/vo
 import { splitProportionally } from "@/lib/voucher"
 import { createNotification } from "@/lib/notifications/create"
 import { buildNewOrderCopy } from "@/lib/notifications/copy"
+import { createPaymongoLink } from "@/lib/payments/paymongo"
 
 const SHIPPING_FEE = 49
 
@@ -37,9 +38,9 @@ export async function applyVoucher(code: string): Promise<VoucherValidationResul
 
 export async function placeOrder(
   addressId: string,
-  paymentMethod: "COD",
+  paymentMethod: "COD" | "PAYMONGO",
   voucherCode?: string
-): Promise<{ orderIds?: string[]; error?: string }> {
+): Promise<{ orderIds?: string[]; checkoutUrl?: string; error?: string }> {
   const user = await getCurrentUser()
   if (!user) return { error: "Unauthorized" }
 
@@ -115,7 +116,7 @@ export async function placeOrder(
           shippingFee: SHIPPING_FEE,
           discountAmount,
           voucherId,
-          status: "PAID",
+          status: paymentMethod === "COD" ? "PAID" : "PENDING",
           items: {
             create: items.map((item) => ({
               productId: item.productId,
@@ -131,6 +132,7 @@ export async function placeOrder(
         data: {
           orderId: newOrder.id,
           method: paymentMethod,
+          provider: paymentMethod,
           status: "PENDING",
           amount: orderTotal,
         },
@@ -168,6 +170,22 @@ export async function placeOrder(
 
   revalidatePath("/cart")
   revalidatePath("/", "layout")
+
+  if (paymentMethod === "PAYMONGO") {
+    const grandTotal = itemsTotals.reduce((sum, itemsTotal, i) => sum + itemsTotal - shopDiscounts[i], 0) +
+      SHIPPING_FEE * groupEntries.length
+
+    try {
+      const link = await createPaymongoLink(grandTotal, `117Shoppe order ${orderIds.join(", ")}`)
+      await prisma.payment.updateMany({
+        where: { orderId: { in: orderIds } },
+        data: { checkoutSessionId: link.id },
+      })
+      return { orderIds, checkoutUrl: link.attributes.checkout_url }
+    } catch {
+      return { orderIds, error: "Failed to start online payment. Please retry from your order page." }
+    }
+  }
 
   return { orderIds }
 }

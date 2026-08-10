@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import { getAdminOrderDetail } from "@/lib/admin/queries"
 import { updateOrderStatus } from "@/lib/admin/actions"
+import { issueRefund } from "@/lib/admin/refunds"
 import OrderStatusBadge from "@/components/admin/OrderStatusBadge"
 import { formatPrice } from "@/lib/utils"
 
@@ -15,6 +16,12 @@ export default async function AdminOrderDetailPage({ params }: Props) {
   const { id } = await params
   const order = await getAdminOrderDetail(id)
   if (!order) notFound()
+
+  const canRefund =
+    order.status === "PAID" &&
+    order.payment?.provider === "PAYMONGO" &&
+    order.payment?.status === "PAID" &&
+    !order.refund
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -120,13 +127,59 @@ export default async function AdminOrderDetailPage({ params }: Props) {
 
       {/* Payment */}
       {order.payment && (
-        <div className="bg-white rounded-lg border border-border-default p-5 space-y-1">
-          <p className="text-xs text-text-secondary uppercase tracking-wide">Payment</p>
-          <p className="text-sm text-text-primary">
-            {order.payment.method} · {order.payment.status}
-          </p>
-          {order.payment.reference && (
-            <p className="text-xs text-text-secondary">Ref: {order.payment.reference}</p>
+        <div className="bg-white rounded-lg border border-border-default p-5 space-y-3">
+          <div className="space-y-1">
+            <p className="text-xs text-text-secondary uppercase tracking-wide">Payment</p>
+            <p className="text-sm text-text-primary">
+              {order.payment.method} · {order.payment.status}
+            </p>
+            {order.payment.reference && (
+              <p className="text-xs text-text-secondary">Ref: {order.payment.reference}</p>
+            )}
+          </div>
+
+          {order.refund && (
+            <div className="pt-2 border-t border-border-default space-y-1">
+              <p className="text-xs text-text-secondary uppercase tracking-wide">Refund</p>
+              <p className="text-sm text-text-primary">
+                {formatPrice(order.refund.amount)} · {order.refund.status}
+              </p>
+              {order.refund.reason && (
+                <p className="text-xs text-text-secondary">Reason: {order.refund.reason}</p>
+              )}
+              {order.refund.processedAt && (
+                <p className="text-xs text-text-secondary">
+                  Processed {order.refund.processedAt.toLocaleString()}
+                </p>
+              )}
+            </div>
+          )}
+
+          {canRefund && (
+            <form className="pt-2 border-t border-border-default space-y-2">
+              <input type="hidden" name="orderId" value={order.id} />
+              <label className="block text-xs text-text-secondary" htmlFor="reason">
+                Refund reason
+              </label>
+              <textarea
+                id="reason"
+                name="reason"
+                required
+                rows={2}
+                className="w-full text-sm border border-border-default rounded px-2 py-1 bg-white text-text-primary"
+                placeholder="Why is this order being refunded?"
+              />
+              <button
+                type="submit"
+                formAction={async (fd: FormData) => {
+                  "use server"
+                  await issueRefund(fd.get("orderId") as string, fd.get("reason") as string)
+                }}
+                className="text-xs px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded cursor-pointer"
+              >
+                Issue Refund
+              </button>
+            </form>
           )}
         </div>
       )}

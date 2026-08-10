@@ -328,6 +328,7 @@ export async function getAdminOrderDetail(orderId: string) {
       },
       payment: true,
       shipment: true,
+      refund: true,
     },
   })
 }

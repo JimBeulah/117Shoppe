@@ -5,6 +5,7 @@ import Image from "next/image"
 import { CheckCircle2, MapPin, Package } from "lucide-react"
 import { getOrderById } from "@/lib/data/checkout"
 import { formatPrice } from "@/lib/utils"
+import { OrderStatusLine } from "@/components/checkout/OrderStatusLine"
 
 export const dynamic = "force-dynamic"
 
@@ -111,7 +112,7 @@ export default async function ConfirmationPage({ searchParams }: Props) {
           </div>
           <div className="flex justify-between text-text-secondary mt-1">
             <span>Order Status</span>
-            <span className="font-medium text-blue-600">Confirmed</span>
+            <OrderStatusLine orderId={order.id} initialStatus={order.status} />
           </div>
         </div>
 
