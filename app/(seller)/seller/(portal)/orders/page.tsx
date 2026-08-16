@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { getCurrentUser } from "@/lib/data/user"
-import { getCurrentShop, getSellerOrders } from "@/lib/seller/queries"
+import { getSellerOrders } from "@/lib/seller/queries"
+import { getShopAccess, canAccess } from "@/lib/seller/access"
 import { formatPrice } from "@/lib/utils"
 import { SearchInput } from "@/components/ui/SearchInput"
 
@@ -36,8 +37,10 @@ export default async function OrdersPage({ searchParams }: Props) {
   const user = await getCurrentUser()
   if (!user) redirect("/sign-in")
 
-  const shop = await getCurrentShop()
-  if (!shop) redirect("/seller/onboarding")
+  const access = await getShopAccess()
+  if (!access) redirect("/seller/onboarding")
+  if (!canAccess(access, "ORDERS")) redirect("/seller/dashboard")
+  const shop = access.shop
 
   const { orders, total, pageSize } = await getSellerOrders(shop.id, statusFilter, page, searchQuery)
   const totalPages = Math.ceil(total / pageSize)

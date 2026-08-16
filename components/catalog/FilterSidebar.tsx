@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { useState } from "react"
 import type { CategoryItem } from "@/types"
+import { CategoryPicture } from "@/components/ui/category-icons"
 
 const RATING_OPTIONS = [
   { value: "4", label: "4★ & Up" },
@@ -109,7 +110,11 @@ export function FilterSidebar({
                       : "hover:bg-brand-50 text-text-primary"
                   }`}
                 >
-                  {cat.icon && <span className="mr-1.5" aria-hidden="true">{cat.icon}</span>}
+                  {cat.imageUrl ? (
+                    <img src={cat.imageUrl} alt="" className="inline-block w-4 h-4 rounded-full object-cover mr-1.5 -mt-0.5" />
+                  ) : (
+                    <CategoryPicture slug={cat.slug} className="inline-block w-3.5 h-3.5 mr-1.5 -mt-0.5" />
+                  )}
                   {cat.name}
                 </Link>
               )

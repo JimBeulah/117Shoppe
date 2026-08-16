@@ -1,11 +1,10 @@
 "use client"
 
 import Link from "next/link"
-import { Search, ShoppingCart } from "lucide-react"
+import { ShoppingCart } from "lucide-react"
 import { UnreadBadge } from "@/components/chat/UnreadBadge"
 import { NotificationBell } from "@/components/notifications/NotificationBell"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { SearchBox } from "@/components/layout/SearchBox"
 import {
   Show,
   SignInButton,
@@ -18,19 +17,6 @@ interface NavbarProps {
 }
 
 export function Navbar({ cartBadge }: NavbarProps) {
-  const [search, setSearch] = useState("")
-  const router = useRouter()
-
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault()
-    const q = search.trim()
-    if (q) {
-      router.push(`/search?q=${encodeURIComponent(q)}`)
-    } else {
-      router.push("/search")
-    }
-  }
-
   return (
     <header className="bg-brand-700 text-white sticky top-0 z-50 shadow-md">
       <div className="max-w-7xl mx-auto px-4 py-3">
@@ -44,25 +30,7 @@ export function Navbar({ cartBadge }: NavbarProps) {
           </Link>
 
           {/* Search */}
-          <form
-            onSubmit={handleSearch}
-            className="flex-1 flex items-center bg-white rounded-md"
-          >
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search products, shops, brands..."
-              className="flex-1 px-4 py-2.5 text-text-primary text-sm outline-none"
-            />
-            <button
-              type="submit"
-              aria-label="Search"
-              className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2 my-1 mr-1 rounded flex items-center transition-colors"
-            >
-              <Search size={18} />
-            </button>
-          </form>
+          <SearchBox />
 
           {/* Right actions */}
           <div className="flex items-center gap-5 flex-shrink-0">

@@ -52,15 +52,18 @@ export default async function ProductPage({ params }: Props) {
 
   return (
     <div className="bg-bg-page min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        <Breadcrumb crumbs={crumbs} />
+      <div className="max-w-7xl mx-auto px-4 py-4 space-y-3">
+        <div className="bg-bg-surface px-2">
+          <Breadcrumb crumbs={crumbs} />
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 mt-2">
+        {/* Top: gallery + buy panel */}
+        <div className="bg-bg-surface p-6 grid grid-cols-1 lg:grid-cols-[440px_1fr] gap-8">
           {/* Left: image gallery */}
           <ImageGallery images={product.images} productName={product.name} />
 
           {/* Right: info panel */}
-          <div className="space-y-5">
+          <div className="space-y-4">
             <div>
               <h1 className="text-lg font-bold text-text-primary leading-snug">{product.name}</h1>
               <div className="flex items-center gap-3 mt-1.5 text-xs text-text-secondary">
@@ -80,24 +83,32 @@ export default async function ProductPage({ params }: Props) {
               isFlashSale={product.isFlashSale}
               baseStock={product.stock}
               variants={product.variants}
-            />
-
-            <ShopPanel shop={product.shop} />
-
-            {/* Description */}
-            <div>
-              <h2 className="text-sm font-semibold text-text-primary mb-2">Product Description</h2>
-              <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">
-                {product.description}
-              </p>
-            </div>
-
-            <ReviewsSection
-              productId={product.id}
-              productRating={product.rating}
-              productReviewCount={product.reviewCount}
+              isShopOnVacation={product.shop.isOnVacation}
+              vacationMessage={product.shop.vacationMessage}
             />
           </div>
+        </div>
+
+        {/* Shop bar */}
+        <div className="bg-bg-surface p-4">
+          <ShopPanel shop={product.shop} />
+        </div>
+
+        {/* Description */}
+        <div className="bg-bg-surface p-6">
+          <h2 className="text-sm font-semibold text-text-primary mb-2">Product Description</h2>
+          <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">
+            {product.description}
+          </p>
+        </div>
+
+        {/* Reviews */}
+        <div className="bg-bg-surface p-6">
+          <ReviewsSection
+            productId={product.id}
+            productRating={product.rating}
+            productReviewCount={product.reviewCount}
+          />
         </div>
       </div>
     </div>

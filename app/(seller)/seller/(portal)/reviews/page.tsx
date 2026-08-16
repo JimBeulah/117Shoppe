@@ -1,12 +1,15 @@
 import { redirect } from "next/navigation"
-import { getCurrentShop, getShopReviews } from "@/lib/seller/queries"
+import { getShopReviews } from "@/lib/seller/queries"
+import { getShopAccess, canAccess } from "@/lib/seller/access"
 import { ReviewsList } from "@/components/seller/ReviewsList"
 
 export const metadata = { title: "Product Reviews | Seller Centre" }
 
 export default async function SellerReviewsPage() {
-  const shop = await getCurrentShop()
-  if (!shop) redirect("/seller/onboarding")
+  const access = await getShopAccess()
+  if (!access) redirect("/seller/onboarding")
+  if (!canAccess(access, "REVIEWS")) redirect("/seller/dashboard")
+  const shop = access.shop
 
   const reviews = await getShopReviews(shop.id)
 

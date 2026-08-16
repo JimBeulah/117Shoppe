@@ -30,6 +30,13 @@ export function ShopHeader({ shop, initialFollowing, isSignedIn }: Props) {
         )}
       </div>
 
+      {shop.isOnVacation && (
+        <div className="bg-amber-50 border-t border-b border-amber-200 text-amber-800 text-sm px-5 py-2">
+          This seller is on vacation and temporarily not accepting new orders.
+          {shop.vacationMessage && <> {shop.vacationMessage}</>}
+        </div>
+      )}
+
       {/* Logo + info row */}
       <div className="px-5 pb-4">
         <div className="flex items-end gap-4 -mt-9 mb-3">

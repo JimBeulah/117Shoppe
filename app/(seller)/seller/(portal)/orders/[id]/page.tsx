@@ -1,7 +1,8 @@
 import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
 import { getCurrentUser } from "@/lib/data/user"
-import { getCurrentShop, getSellerOrderDetail } from "@/lib/seller/queries"
+import { getSellerOrderDetail } from "@/lib/seller/queries"
+import { getShopAccess, canAccess } from "@/lib/seller/access"
 import { shipOrder } from "@/lib/seller/actions"
 import CancelOrderModal from "@/components/seller/CancelOrderModal"
 import { formatPrice } from "@/lib/utils"
@@ -25,8 +26,10 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
   const user = await getCurrentUser()
   if (!user) redirect("/sign-in")
 
-  const shop = await getCurrentShop()
-  if (!shop) redirect("/seller/onboarding")
+  const access = await getShopAccess()
+  if (!access) redirect("/seller/onboarding")
+  if (!canAccess(access, "ORDERS")) redirect("/seller/dashboard")
+  const shop = access.shop
 
   const order = await getSellerOrderDetail(id, shop.id)
   if (!order) notFound()

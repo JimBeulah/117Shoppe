@@ -17,7 +17,7 @@ export default async function HomePage() {
     prisma.voucher.findMany({ where: { isActive: true, expiresAt: { gt: new Date() } }, orderBy: { expiresAt: "asc" }, take: 6 }),
     getHomeFlashSaleSection(10),
     prisma.product.findMany({
-      where: { isTrending: true, isActive: true },
+      where: { isTrending: true, isActive: true, status: "APPROVED", shop: { isOnVacation: false } },
       include: {
         shop: { select: { name: true, slug: true } },
         flashSaleItems: activeFlashSaleItemInclude(),
@@ -26,7 +26,7 @@ export default async function HomePage() {
       take: 2,
     }),
     prisma.product.findMany({
-      where: { isActive: true },
+      where: { isActive: true, status: "APPROVED", shop: { isOnVacation: false } },
       include: {
         shop: { select: { name: true, slug: true } },
         flashSaleItems: activeFlashSaleItemInclude(),

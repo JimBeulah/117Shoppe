@@ -93,6 +93,24 @@ export function buildPayoutRejectedCopy(payoutId: string, reason: string) {
   }
 }
 
+export function buildShopVacationEndCopy(shopName: string, shopSlug: string) {
+  return {
+    type: NotificationType.SHOP_VACATION,
+    title: "Seller is back!",
+    message: `${shopName} is back from vacation and accepting orders again.`,
+    link: `/shop/${shopSlug}` as string | null,
+  }
+}
+
+export function buildStaffAddedCopy(shopName: string) {
+  return {
+    type: NotificationType.SHOP_STAFF_ADDED,
+    title: "You've been added as staff",
+    message: `You now have staff access to ${shopName}'s Seller Centre.`,
+    link: "/seller/dashboard" as string | null,
+  }
+}
+
 export function buildNewMessageCopy(senderName: string) {
   return {
     type: NotificationType.NEW_MESSAGE,

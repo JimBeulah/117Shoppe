@@ -26,7 +26,7 @@ export default async function AdminCategoriesPage({
               <th className="text-left px-4 py-3 text-text-secondary font-medium">Name</th>
               <th className="text-left px-4 py-3 text-text-secondary font-medium">Slug</th>
               <th className="text-left px-4 py-3 text-text-secondary font-medium">Parent</th>
-              <th className="text-left px-4 py-3 text-text-secondary font-medium">Icon</th>
+              <th className="text-left px-4 py-3 text-text-secondary font-medium">Image</th>
               <th className="text-right px-4 py-3 text-text-secondary font-medium">Products</th>
               <th className="px-4 py-3" />
             </tr>
@@ -39,7 +39,13 @@ export default async function AdminCategoriesPage({
                 </td>
                 <td className="px-4 py-3 text-text-secondary font-mono text-xs">{cat.slug}</td>
                 <td className="px-4 py-3 text-text-secondary">{cat.parent?.name ?? "—"}</td>
-                <td className="px-4 py-3 text-text-secondary">{cat.icon ?? "—"}</td>
+                <td className="px-4 py-3">
+                  {cat.imageUrl ? (
+                    <img src={cat.imageUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-border-default" />
+                  ) : (
+                    <span className="text-text-secondary">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-right text-text-secondary">{cat._count.products}</td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-3">
@@ -92,13 +98,15 @@ export default async function AdminCategoriesPage({
               />
             </div>
             <div>
-              <label className="text-xs text-text-secondary block mb-1">Icon (emoji or URL)</label>
+              <label className="text-xs text-text-secondary block mb-1">Image URL</label>
               <input
-                name="icon"
-                defaultValue={editingCategory.icon ?? ""}
+                name="imageUrl"
+                defaultValue={editingCategory.imageUrl ?? ""}
+                placeholder="https://..."
                 className="w-full text-sm border border-border-default rounded px-3 py-2"
               />
             </div>
+            <input type="hidden" name="icon" value={editingCategory.icon ?? ""} />
             <div>
               <label className="text-xs text-text-secondary block mb-1">Parent Category</label>
               <select
@@ -124,6 +132,7 @@ export default async function AdminCategoriesPage({
                     fd.get("name") as string,
                     fd.get("slug") as string,
                     (fd.get("icon") as string) || null,
+                    (fd.get("imageUrl") as string) || null,
                     (fd.get("parentId") as string) || null
                   )
                 }}
@@ -157,8 +166,8 @@ export default async function AdminCategoriesPage({
             />
           </div>
           <div>
-            <label className="text-xs text-text-secondary block mb-1">Icon (emoji or URL)</label>
-            <input name="icon" className="w-full text-sm border border-border-default rounded px-3 py-2" />
+            <label className="text-xs text-text-secondary block mb-1">Image URL</label>
+            <input name="imageUrl" placeholder="https://..." className="w-full text-sm border border-border-default rounded px-3 py-2" />
           </div>
           <div>
             <label className="text-xs text-text-secondary block mb-1">Parent Category</label>
@@ -182,7 +191,8 @@ export default async function AdminCategoriesPage({
                 await createCategory(
                   fd.get("name") as string,
                   fd.get("slug") as string,
-                  (fd.get("icon") as string) || null,
+                  null,
+                  (fd.get("imageUrl") as string) || null,
                   (fd.get("parentId") as string) || null
                 )
               }}

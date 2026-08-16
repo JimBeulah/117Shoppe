@@ -10,7 +10,7 @@ interface ReviewsSectionProps {
 
 export async function ReviewsSection({ productId, productRating, productReviewCount }: ReviewsSectionProps) {
   return (
-    <div className="mt-6">
+    <div>
       <h2 className="text-sm font-semibold text-text-primary mb-4">Product Ratings &amp; Reviews</h2>
       {productReviewCount === 0 ? (
         <p className="text-sm text-text-secondary">

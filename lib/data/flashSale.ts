@@ -51,7 +51,7 @@ export const getHomeFlashSaleSection = cache(async (
   const items = await prisma.flashSaleItem.findMany({
     where: {
       flashSale: { isActive: true, startsAt: { lte: now }, endsAt: { gte: now } },
-      product: { isActive: true },
+      product: { isActive: true, status: "APPROVED", shop: { isOnVacation: false } },
     },
     include: {
       product: { include: { shop: { select: { name: true, slug: true } } } },
@@ -93,7 +93,7 @@ export const getAllActiveFlashSaleProducts = cache(async (
   const now = new Date()
   const where = {
     flashSale: { isActive: true, startsAt: { lte: now }, endsAt: { gte: now } },
-    product: { isActive: true },
+    product: { isActive: true, status: "APPROVED", shop: { isOnVacation: false } },
   } as const
 
   const [items, total] = await Promise.all([

@@ -10,6 +10,15 @@ interface AuthSocket extends Socket {
   data: { userId: string }
 }
 
+async function isSellerForShop(userId: string, shopId: string, ownerId: string): Promise<boolean> {
+  if (ownerId === userId) return true
+  const staff = await prisma.shopStaff.findUnique({
+    where: { shopId_userId: { shopId, userId } },
+    select: { permissions: true },
+  })
+  return !!staff && staff.permissions.includes('CHAT')
+}
+
 export function setupSocketServer(io: Server) {
   // Auth middleware — runs before every connection
   io.use(async (socket, next) => {
@@ -54,7 +63,7 @@ export function setupSocketServer(io: Server) {
       if (!conversation) return socket.emit('error', 'Conversation not found')
 
       const isBuyer = conversation.buyerId === userId
-      const isSeller = conversation.shop.ownerId === userId
+      const isSeller = await isSellerForShop(userId, conversation.shopId, conversation.shop.ownerId)
       if (!isBuyer && !isSeller) return socket.emit('error', 'Unauthorized')
 
       socket.join(conversationId)
@@ -73,7 +82,7 @@ export function setupSocketServer(io: Server) {
         if (!conversation) return socket.emit('error', 'Conversation not found')
 
         const isBuyer = conversation.buyerId === userId
-        const isSeller = conversation.shop.ownerId === userId
+        const isSeller = await isSellerForShop(userId, conversation.shopId, conversation.shop.ownerId)
         if (!isBuyer && !isSeller) return socket.emit('error', 'Unauthorized')
 
         const receiverId = isBuyer ? conversation.shop.ownerId : conversation.buyerId

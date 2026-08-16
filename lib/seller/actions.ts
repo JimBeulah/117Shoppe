@@ -5,19 +5,18 @@ import { redirect } from "next/navigation"
 import { clerkClient } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
+import { requireShopAccess } from "@/lib/seller/access"
 import { createNotification } from "@/lib/notifications/create"
-import { buildOrderStatusCopy, buildReviewReplyCopy } from "@/lib/notifications/copy"
+import {
+  buildOrderStatusCopy,
+  buildReviewReplyCopy,
+  buildShopVacationEndCopy,
+  buildStaffAddedCopy,
+} from "@/lib/notifications/copy"
 import { reconcileEligibleCommissions } from "@/lib/payouts/reconcile"
 import { MIN_PAYOUT_AMOUNT } from "@/lib/payouts/config"
-import type { UpsertProductData } from "@/types/seller"
-
-// ─── Helper ──────────────────────────────────────────────────────────────────
-
-async function getVerifiedShop() {
-  const user = await getCurrentUser()
-  if (!user || user.role !== "SELLER") return null
-  return prisma.shop.findUnique({ where: { ownerId: user.id } })
-}
+import type { UpsertProductData, BulkProductPatch } from "@/types/seller"
+import type { StaffPermission } from "@/lib/generated/prisma/client"
 
 // ─── Shop ─────────────────────────────────────────────────────────────────────
 
@@ -58,7 +57,7 @@ export async function createShop(formData: FormData): Promise<{ error?: string }
 }
 
 export async function updateShop(formData: FormData): Promise<{ error?: string }> {
-  const shop = await getVerifiedShop()
+  const shop = await requireShopAccess()
   if (!shop) return { error: "Unauthorized" }
 
   const name = (formData.get("name") as string)?.trim()
@@ -81,10 +80,55 @@ export async function updateShop(formData: FormData): Promise<{ error?: string }
   return {}
 }
 
+export async function toggleShopVacation(
+  isOnVacation: boolean,
+  vacationMessage?: string | null
+): Promise<{ error?: string }> {
+  const shop = await requireShopAccess()
+  if (!shop || shop.status !== "ACTIVE") return { error: "Unauthorized" }
+
+  const trimmedMessage = vacationMessage?.trim() || null
+  if (trimmedMessage && trimmedMessage.length > 200) {
+    return { error: "Vacation message is too long" }
+  }
+
+  try {
+    await prisma.shop.update({
+      where: { id: shop.id },
+      data: {
+        isOnVacation,
+        vacationMessage: isOnVacation ? trimmedMessage : null,
+      },
+    })
+  } catch {
+    return { error: "Failed to update vacation mode. Please try again." }
+  }
+
+  if (!isOnVacation) {
+    const followers = await prisma.shopFollow.findMany({
+      where: { shopId: shop.id },
+      select: { userId: true },
+    })
+    await Promise.all(
+      followers.map((f) =>
+        createNotification({
+          userId: f.userId,
+          ...buildShopVacationEndCopy(shop.name, shop.slug),
+        })
+      )
+    )
+  }
+
+  revalidatePath("/seller/settings")
+  revalidatePath(`/shop/${shop.slug}`)
+  revalidatePath("/", "layout")
+  return {}
+}
+
 // ─── Payouts ──────────────────────────────────────────────────────────────────
 
 export async function requestPayout(): Promise<{ error?: string }> {
-  const shop = await getVerifiedShop()
+  const shop = await requireShopAccess()
   if (!shop) return { error: "Unauthorized" }
 
   await reconcileEligibleCommissions(shop.id)
@@ -118,7 +162,7 @@ export async function requestPayout(): Promise<{ error?: string }> {
 // ─── Products ─────────────────────────────────────────────────────────────────
 
 export async function upsertProduct(data: UpsertProductData): Promise<{ error?: string }> {
-  const shop = await getVerifiedShop()
+  const shop = await requireShopAccess("PRODUCTS")
   if (!shop || shop.status !== "ACTIVE") return { error: "Unauthorized" }
 
   if (data.id) {
@@ -147,6 +191,7 @@ export async function upsertProduct(data: UpsertProductData): Promise<{ error?: 
             images: data.images,
             stock: data.variants.length === 0 ? data.stock : 0,
             categoryId: data.categoryId,
+            brandId: data.brandId || null,
             isActive: data.isActive,
             variantOptions: data.variantOptions as any,
           },
@@ -163,8 +208,10 @@ export async function upsertProduct(data: UpsertProductData): Promise<{ error?: 
             images: data.images,
             stock: data.variants.length === 0 ? data.stock : 0,
             categoryId: data.categoryId,
+            brandId: data.brandId || null,
             shopId: shop.id,
             isActive: data.isActive,
+            status: "PENDING",
             variantOptions: data.variantOptions as any,
           },
         })
@@ -199,7 +246,7 @@ export async function toggleProduct(
   productId: string,
   isActive: boolean
 ): Promise<{ error?: string }> {
-  const shop = await getVerifiedShop()
+  const shop = await requireShopAccess("PRODUCTS")
   if (!shop || shop.status !== "ACTIVE") return { error: "Unauthorized" }
 
   const product = await prisma.product.findUnique({ where: { id: productId } })
@@ -211,7 +258,7 @@ export async function toggleProduct(
 }
 
 export async function deleteProduct(productId: string): Promise<{ error?: string }> {
-  const shop = await getVerifiedShop()
+  const shop = await requireShopAccess("PRODUCTS")
   if (!shop || shop.status !== "ACTIVE") return { error: "Unauthorized" }
 
   const product = await prisma.product.findUnique({ where: { id: productId } })
@@ -222,6 +269,43 @@ export async function deleteProduct(productId: string): Promise<{ error?: string
   return {}
 }
 
+export async function bulkUpdateProducts(
+  productIds: string[],
+  patch: BulkProductPatch
+): Promise<{ error?: string; updated?: number }> {
+  const shop = await requireShopAccess("PRODUCTS")
+  if (!shop || shop.status !== "ACTIVE") return { error: "Unauthorized" }
+  if (productIds.length === 0) return { error: "No products selected" }
+
+  const owned = await prisma.product.findMany({
+    where: { id: { in: productIds }, shopId: shop.id },
+    select: { id: true, price: true },
+  })
+  if (owned.length === 0) return { error: "No matching products found" }
+
+  if (patch.type === "setActive") {
+    await prisma.product.updateMany({
+      where: { id: { in: owned.map((p) => p.id) } },
+      data: { isActive: patch.isActive },
+    })
+  } else {
+    if (patch.value <= 0) return { error: "Value must be greater than 0" }
+    await prisma.$transaction(
+      owned.map((p) => {
+        const delta = patch.mode === "percent" ? p.price * (patch.value / 100) : patch.value
+        const newPrice = Math.max(0, patch.direction === "increase" ? p.price + delta : p.price - delta)
+        return prisma.product.update({
+          where: { id: p.id },
+          data: { price: Math.round(newPrice * 100) / 100 },
+        })
+      })
+    )
+  }
+
+  revalidatePath("/seller/products")
+  return { updated: owned.length }
+}
+
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
 export async function shipOrder(
@@ -229,7 +313,7 @@ export async function shipOrder(
   courier: string,
   trackingNumber: string
 ): Promise<{ error?: string }> {
-  const shop = await getVerifiedShop()
+  const shop = await requireShopAccess("ORDERS")
   if (!shop || shop.status !== "ACTIVE") return { error: "Unauthorized" }
 
   const order = await prisma.order.findUnique({ where: { id: orderId } })
@@ -254,7 +338,7 @@ export async function shipOrder(
 }
 
 export async function cancelOrder(orderId: string): Promise<{ error?: string }> {
-  const shop = await getVerifiedShop()
+  const shop = await requireShopAccess("ORDERS")
   if (!shop || shop.status !== "ACTIVE") return { error: "Unauthorized" }
 
   const order = await prisma.order.findUnique({ where: { id: orderId } })
@@ -274,7 +358,7 @@ export async function cancelOrder(orderId: string): Promise<{ error?: string }> 
 // ─── Reviews ──────────────────────────────────────────────────────────────────
 
 export async function replyToReview(reviewId: string, comment: string): Promise<{ error?: string }> {
-  const shop = await getVerifiedShop()
+  const shop = await requireShopAccess("REVIEWS")
   if (!shop) return { error: "Unauthorized" }
 
   const trimmed = comment.trim()
@@ -303,5 +387,71 @@ export async function replyToReview(reviewId: string, comment: string): Promise<
   })
 
   revalidatePath("/seller/reviews")
+  return {}
+}
+
+// ─── Staff ────────────────────────────────────────────────────────────────────
+
+export async function addStaffMember(
+  email: string,
+  permissions: StaffPermission[]
+): Promise<{ error?: string }> {
+  const shop = await requireShopAccess()
+  if (!shop) return { error: "Unauthorized" }
+
+  const trimmedEmail = email.trim().toLowerCase()
+  if (!trimmedEmail) return { error: "Email is required" }
+  if (permissions.length === 0) return { error: "Select at least one permission" }
+
+  const targetUser = await prisma.user.findUnique({ where: { email: trimmedEmail } })
+  if (!targetUser) return { error: "No registered user found with that email" }
+  if (targetUser.id === shop.ownerId) return { error: "You can't add yourself as staff on your own shop" }
+
+  const owner = await getCurrentUser()
+  if (!owner) return { error: "Unauthorized" }
+
+  try {
+    await prisma.shopStaff.create({
+      data: { shopId: shop.id, userId: targetUser.id, permissions, invitedById: owner.id },
+    })
+  } catch (e: any) {
+    if (e?.code === "P2002") return { error: "That user is already staff on this shop" }
+    return { error: "Failed to add staff member. Please try again." }
+  }
+
+  await createNotification({
+    userId: targetUser.id,
+    ...buildStaffAddedCopy(shop.name),
+  })
+
+  revalidatePath("/seller/settings/staff")
+  return {}
+}
+
+export async function updateStaffPermissions(
+  staffId: string,
+  permissions: StaffPermission[]
+): Promise<{ error?: string }> {
+  const shop = await requireShopAccess()
+  if (!shop) return { error: "Unauthorized" }
+  if (permissions.length === 0) return { error: "Select at least one permission" }
+
+  const staff = await prisma.shopStaff.findUnique({ where: { id: staffId } })
+  if (!staff || staff.shopId !== shop.id) return { error: "Not found" }
+
+  await prisma.shopStaff.update({ where: { id: staffId }, data: { permissions } })
+  revalidatePath("/seller/settings/staff")
+  return {}
+}
+
+export async function removeStaffMember(staffId: string): Promise<{ error?: string }> {
+  const shop = await requireShopAccess()
+  if (!shop) return { error: "Unauthorized" }
+
+  const staff = await prisma.shopStaff.findUnique({ where: { id: staffId } })
+  if (!staff || staff.shopId !== shop.id) return { error: "Not found" }
+
+  await prisma.shopStaff.delete({ where: { id: staffId } })
+  revalidatePath("/seller/settings/staff")
   return {}
 }

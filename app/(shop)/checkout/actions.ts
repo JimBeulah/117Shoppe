@@ -61,8 +61,13 @@ export async function placeOrder(
 
   if (!cart || cart.items.length === 0) return { error: "Cart is empty" }
 
-  // Validate stock
+  // Validate stock and shop availability
   for (const item of cart.items) {
+    if (item.product.shop.isOnVacation) {
+      return {
+        error: `"${item.product.shop.name}" is currently on vacation and cannot fulfill orders right now. Please remove it from your cart.`,
+      }
+    }
     const availableStock = item.variant ? item.variant.stock : item.product.stock
     if (item.quantity > availableStock) {
       return {

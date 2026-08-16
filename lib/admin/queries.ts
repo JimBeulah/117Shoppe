@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
 import type {
   AdminBannerRow,
+  AdminBrandRow,
   AdminCategoryRow,
   AdminDashboardStats,
   AdminFlashSaleRow,
@@ -224,10 +225,15 @@ export async function getAdminOrders(
 
 export async function getAdminProducts(
   page: number,
-  search?: string | null
+  search?: string | null,
+  statusFilter?: string | null
 ): Promise<{ products: AdminProductRow[]; total: number; pageSize: number }> {
   await assertAdmin()
+  const VALID_PRODUCT_STATUSES = ["PENDING", "APPROVED", "REJECTED"]
   const where: any = {}
+  if (statusFilter && VALID_PRODUCT_STATUSES.includes(statusFilter)) {
+    where.status = statusFilter
+  }
   if (search) {
     where.OR = [
       { name: { contains: search, mode: "insensitive" } },
@@ -247,6 +253,8 @@ export async function getAdminProducts(
         price: true,
         stock: true,
         isActive: true,
+        status: true,
+        rejectionReason: true,
         createdAt: true,
         shop: { select: { name: true } },
         category: { select: { name: true } },
@@ -266,8 +274,24 @@ export async function getAdminCategories(): Promise<AdminCategoryRow[]> {
       name: true,
       slug: true,
       icon: true,
+      imageUrl: true,
       parentId: true,
       parent: { select: { name: true } },
+      _count: { select: { products: true } },
+    },
+  })
+}
+
+export async function getAdminBrands(): Promise<AdminBrandRow[]> {
+  await assertAdmin()
+  return prisma.brand.findMany({
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      logoUrl: true,
+      createdAt: true,
       _count: { select: { products: true } },
     },
   })

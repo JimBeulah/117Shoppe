@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { getCurrentUser } from "@/lib/data/user"
-import { getCurrentShop, getDashboardStats } from "@/lib/seller/queries"
+import { getDashboardStats } from "@/lib/seller/queries"
+import { getShopAccess } from "@/lib/seller/access"
 import SellerStatCard from "@/components/seller/SellerStatCard"
 import { formatPrice } from "@/lib/utils"
 
@@ -29,10 +30,10 @@ export default async function DashboardPage() {
   const user = await getCurrentUser()
   if (!user) redirect("/sign-in")
 
-  const shop = await getCurrentShop()
-  if (!shop) redirect("/seller/onboarding")
+  const access = await getShopAccess()
+  if (!access) redirect("/seller/onboarding")
 
-  const stats = await getDashboardStats(shop.id)
+  const stats = await getDashboardStats(access.shop.id)
 
   return (
     <div className="space-y-6">

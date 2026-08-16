@@ -12,6 +12,15 @@ export async function addToCart(
   const user = await getCurrentUser()
   if (!user) return { error: "Sign in to add items to your cart." }
 
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { shop: { select: { isOnVacation: true } } },
+  })
+  if (!product) return { error: "Product not found." }
+  if (product.shop.isOnVacation) {
+    return { error: "This shop is currently on vacation and not accepting orders." }
+  }
+
   const cart = await prisma.cart.upsert({
     where: { userId: user.id },
     create: { userId: user.id },

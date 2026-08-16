@@ -10,7 +10,7 @@ import ProductImageUploader from "@/components/seller/ProductImageUploader"
 import { upsertProduct } from "@/lib/seller/actions"
 import { productFormSchema, type ProductFormValues } from "@/lib/seller/product-validations"
 import { slugify, crossProduct } from "@/lib/utils"
-import type { VariantOption, VariantCellData, CategoryItem } from "@/types/seller"
+import type { VariantOption, VariantCellData, CategoryItem, BrandItem } from "@/types/seller"
 
 interface InitialProduct {
   id: string
@@ -22,6 +22,7 @@ interface InitialProduct {
   images: string[]
   stock: number
   categoryId: string
+  brandId?: string | null
   isActive: boolean
   variantOptions: VariantOption[] | null
   variants: { name: string; price: number; stock: number; sku: string | null; image: string | null }[]
@@ -29,10 +30,11 @@ interface InitialProduct {
 
 interface Props {
   categories: CategoryItem[]
+  brands: BrandItem[]
   initial?: InitialProduct
 }
 
-export default function ProductFormClient({ categories, initial }: Props) {
+export default function ProductFormClient({ categories, brands, initial }: Props) {
   const router = useRouter()
 
   const initialParentCategoryId = (() => {
@@ -74,6 +76,7 @@ export default function ProductFormClient({ categories, initial }: Props) {
       description: initial?.description ?? "",
       parentCategoryId: initialParentCategoryId,
       categoryId: initial?.categoryId ?? "",
+      brandId: initial?.brandId ?? "",
       price: initial?.price ?? 0,
       originalPrice: initial?.originalPrice ?? undefined,
       images: initial?.images ?? [],
@@ -123,6 +126,7 @@ export default function ProductFormClient({ categories, initial }: Props) {
         slug: values.slug,
         description: values.description,
         categoryId: values.categoryId,
+        brandId: values.brandId || null,
         price: values.price,
         originalPrice: values.originalPrice,
         images: values.images,
@@ -226,6 +230,21 @@ export default function ProductFormClient({ categories, initial }: Props) {
           )}
         </div>
 
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-text-primary">Brand</label>
+          <select
+            {...register("brandId")}
+            className="w-full border border-border-default rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          >
+            <option value="">No brand</option>
+            {brands.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="block text-sm font-medium text-text-primary">Price (₱) *</label>
@@ -322,6 +341,11 @@ export default function ProductFormClient({ categories, initial }: Props) {
             </p>
           </div>
         </label>
+        {!initial?.id && (
+          <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+            New products require admin approval before they appear on the storefront.
+          </p>
+        )}
       </section>
 
       <div className="flex items-center gap-3">

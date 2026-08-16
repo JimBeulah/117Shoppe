@@ -1,15 +1,18 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { addToCart } from "@/app/(shop)/cart/actions"
 
 interface AddToCartButtonProps {
   productId: string
   variantId: string | null
   stock: number
+  outOfStockLabel?: string
 }
 
-export function AddToCartButton({ productId, variantId, stock }: AddToCartButtonProps) {
+export function AddToCartButton({ productId, variantId, stock, outOfStockLabel = "Out of Stock" }: AddToCartButtonProps) {
+  const router = useRouter()
   const [qty, setQty] = useState(1)
   const [message, setMessage] = useState("")
   const [isPending, startTransition] = useTransition()
@@ -24,6 +27,19 @@ export function AddToCartButton({ productId, variantId, stock }: AddToCartButton
         setMessage("Added to cart!")
       }
       setTimeout(() => setMessage(""), 3000)
+    })
+  }
+
+  function handleBuyNow() {
+    if (stock <= 0) return
+    startTransition(async () => {
+      const result = await addToCart(productId, variantId, qty)
+      if (result.error) {
+        setMessage(result.error)
+        setTimeout(() => setMessage(""), 3000)
+        return
+      }
+      router.push("/checkout")
     })
   }
 
@@ -53,13 +69,22 @@ export function AddToCartButton({ productId, variantId, stock }: AddToCartButton
           </button>
         </div>
       </div>
-      <button
-        onClick={handleAddToCart}
-        disabled={isPending || stock <= 0}
-        className="w-full py-3 rounded-lg bg-brand-600 text-white font-semibold text-sm hover:bg-brand-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-      >
-        {isPending ? "Adding…" : stock <= 0 ? "Out of Stock" : "Add to Cart"}
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleAddToCart}
+          disabled={isPending || stock <= 0}
+          className="flex-1 py-3 rounded-lg border border-brand-600 text-brand-600 font-semibold text-sm hover:bg-brand-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {isPending ? "Adding…" : stock <= 0 ? outOfStockLabel : "Add to Cart"}
+        </button>
+        <button
+          onClick={handleBuyNow}
+          disabled={isPending || stock <= 0}
+          className="flex-1 py-3 rounded-lg bg-brand-600 text-white font-semibold text-sm hover:bg-brand-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          Buy Now
+        </button>
+      </div>
       {message && (
         <p className="text-xs text-text-secondary text-center" role="status">
           {message}

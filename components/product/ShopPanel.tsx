@@ -10,6 +10,7 @@ interface ShopPanelProps {
     logo: string | null
     rating: number
     followersCount: number
+    isOnVacation: boolean
   }
 }
 
@@ -26,7 +27,14 @@ export function ShopPanel({ shop }: ShopPanelProps) {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-sm text-text-primary truncate">{shop.name}</p>
+        <p className="font-semibold text-sm text-text-primary truncate flex items-center gap-1.5">
+          {shop.name}
+          {shop.isOnVacation && (
+            <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded shrink-0">
+              On vacation
+            </span>
+          )}
+        </p>
         <p className="text-xs text-text-secondary">
           ★ {shop.rating.toFixed(1)} · {shop.followersCount.toLocaleString()} followers
         </p>

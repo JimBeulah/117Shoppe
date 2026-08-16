@@ -6,16 +6,18 @@ import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
 import { createNotification } from "@/lib/notifications/create"
 import { buildOrderStatusCopy } from "@/lib/notifications/copy"
+import { writeAuditLog } from "@/lib/admin/audit"
 
 export async function assertAdmin() {
   const user = await getCurrentUser()
   if (!user || user.role !== "ADMIN") throw new Error("Unauthorized")
+  return user
 }
 
 // ─── Sellers ──────────────────────────────────────────────────────────────────
 
 export async function approveShop(shopId: string): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   const shop = await prisma.shop.findUnique({ where: { id: shopId }, include: { owner: true } })
   if (!shop) return { error: "Shop not found" }
 
@@ -30,13 +32,14 @@ export async function approveShop(shopId: string): Promise<{ error?: string }> {
     return { error: "Role saved but Clerk sync failed — please retry" }
   }
 
+  await writeAuditLog(admin.id, "shop.approve", "Shop", shopId)
   revalidatePath("/admin/sellers")
   revalidatePath("/admin/dashboard")
   return {}
 }
 
 export async function rejectShop(shopId: string, reason: string): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   if (!reason.trim()) return { error: "Rejection reason is required" }
   const shop = await prisma.shop.findUnique({ where: { id: shopId }, include: { owner: true } })
   if (!shop) return { error: "Shop not found" }
@@ -52,19 +55,21 @@ export async function rejectShop(shopId: string, reason: string): Promise<{ erro
     return { error: "Role saved but Clerk sync failed — please retry" }
   }
 
+  await writeAuditLog(admin.id, "shop.reject", "Shop", shopId, { reason })
   revalidatePath("/admin/sellers")
   revalidatePath("/admin/dashboard")
   return {}
 }
 
 export async function updateShopCommissionRate(shopId: string, rate: number): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
     return { error: "Commission rate must be between 0 and 100" }
   }
 
   await prisma.shop.update({ where: { id: shopId }, data: { commissionRate: rate } })
 
+  await writeAuditLog(admin.id, "shop.updateCommissionRate", "Shop", shopId, { rate })
   revalidatePath("/admin/sellers")
   return {}
 }
@@ -72,7 +77,7 @@ export async function updateShopCommissionRate(shopId: string, rate: number): Pr
 // ─── Users ────────────────────────────────────────────────────────────────────
 
 export async function promoteToSeller(userId: string, clerkId: string): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   await prisma.user.update({ where: { id: userId }, data: { role: "SELLER" } })
   try {
     const clerk = await clerkClient()
@@ -80,12 +85,13 @@ export async function promoteToSeller(userId: string, clerkId: string): Promise<
   } catch {
     return { error: "Role saved but Clerk sync failed — please retry" }
   }
+  await writeAuditLog(admin.id, "user.promoteToSeller", "User", userId)
   revalidatePath("/admin/users")
   return {}
 }
 
 export async function demoteToBuyer(userId: string, clerkId: string): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   await prisma.user.update({ where: { id: userId }, data: { role: "BUYER" } })
   try {
     const clerk = await clerkClient()
@@ -93,12 +99,13 @@ export async function demoteToBuyer(userId: string, clerkId: string): Promise<{ 
   } catch {
     return { error: "Role saved but Clerk sync failed — please retry" }
   }
+  await writeAuditLog(admin.id, "user.demoteToBuyer", "User", userId)
   revalidatePath("/admin/users")
   return {}
 }
 
 export async function banUser(userId: string, clerkId: string): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   await prisma.user.update({ where: { id: userId }, data: { isBanned: true } })
   try {
     const clerk = await clerkClient()
@@ -106,12 +113,13 @@ export async function banUser(userId: string, clerkId: string): Promise<{ error?
   } catch {
     return { error: "Banned in DB but Clerk sync failed — please retry" }
   }
+  await writeAuditLog(admin.id, "user.ban", "User", userId)
   revalidatePath("/admin/users")
   return {}
 }
 
 export async function unbanUser(userId: string, clerkId: string): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   await prisma.user.update({ where: { id: userId }, data: { isBanned: false } })
   try {
     const clerk = await clerkClient()
@@ -119,6 +127,7 @@ export async function unbanUser(userId: string, clerkId: string): Promise<{ erro
   } catch {
     return { error: "Unbanned in DB but Clerk sync failed — please retry" }
   }
+  await writeAuditLog(admin.id, "user.unban", "User", userId)
   revalidatePath("/admin/users")
   return {}
 }
@@ -126,8 +135,9 @@ export async function unbanUser(userId: string, clerkId: string): Promise<{ erro
 // ─── Products ─────────────────────────────────────────────────────────────────
 
 export async function adminToggleProduct(productId: string, isActive: boolean): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   await prisma.product.update({ where: { id: productId }, data: { isActive } })
+  await writeAuditLog(admin.id, "product.toggleActive", "Product", productId, { isActive })
   revalidatePath("/admin/products")
   return {}
 }
@@ -138,17 +148,20 @@ export async function createCategory(
   name: string,
   slug: string,
   icon: string | null,
+  imageUrl: string | null,
   parentId: string | null
 ): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   if (!name.trim()) return { error: "Name is required" }
   if (!slug.trim() || !/^[a-z0-9-]+$/.test(slug)) return { error: "Slug must be lowercase letters, numbers, hyphens" }
+  let category: { id: string }
   try {
-    await prisma.category.create({ data: { name, slug, icon, parentId: parentId || null } })
+    category = await prisma.category.create({ data: { name, slug, icon, imageUrl, parentId: parentId || null } })
   } catch (e: unknown) {
     if ((e as { code?: string })?.code === "P2002") return { error: "Slug already in use" }
     return { error: "Failed to create category" }
   }
+  await writeAuditLog(admin.id, "category.create", "Category", category.id, { name, slug })
   revalidatePath("/admin/categories")
   return {}
 }
@@ -158,27 +171,82 @@ export async function updateCategory(
   name: string,
   slug: string,
   icon: string | null,
+  imageUrl: string | null,
   parentId: string | null
 ): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   if (!name.trim()) return { error: "Name is required" }
   if (!slug.trim() || !/^[a-z0-9-]+$/.test(slug)) return { error: "Slug must be lowercase letters, numbers, hyphens" }
   try {
-    await prisma.category.update({ where: { id }, data: { name, slug, icon, parentId: parentId || null } })
+    await prisma.category.update({ where: { id }, data: { name, slug, icon, imageUrl, parentId: parentId || null } })
   } catch (e: unknown) {
     if ((e as { code?: string })?.code === "P2002") return { error: "Slug already in use" }
     return { error: "Failed to update category" }
   }
+  await writeAuditLog(admin.id, "category.update", "Category", id, { name, slug })
   revalidatePath("/admin/categories")
   return {}
 }
 
 export async function deleteCategory(id: string): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   const count = await prisma.product.count({ where: { categoryId: id } })
   if (count > 0) return { error: `Cannot delete: ${count} product(s) use this category` }
   await prisma.category.delete({ where: { id } })
+  await writeAuditLog(admin.id, "category.delete", "Category", id)
   revalidatePath("/admin/categories")
+  return {}
+}
+
+// ─── Brands ───────────────────────────────────────────────────────────────────
+
+export async function createBrand(
+  name: string,
+  slug: string,
+  logoUrl: string | null
+): Promise<{ error?: string }> {
+  const admin = await assertAdmin()
+  if (!name.trim()) return { error: "Name is required" }
+  if (!slug.trim() || !/^[a-z0-9-]+$/.test(slug)) return { error: "Slug must be lowercase letters, numbers, hyphens" }
+  let brand: { id: string }
+  try {
+    brand = await prisma.brand.create({ data: { name, slug, logoUrl } })
+  } catch (e: unknown) {
+    if ((e as { code?: string })?.code === "P2002") return { error: "Slug already in use" }
+    return { error: "Failed to create brand" }
+  }
+  await writeAuditLog(admin.id, "brand.create", "Brand", brand.id, { name, slug })
+  revalidatePath("/admin/brands")
+  return {}
+}
+
+export async function updateBrand(
+  id: string,
+  name: string,
+  slug: string,
+  logoUrl: string | null
+): Promise<{ error?: string }> {
+  const admin = await assertAdmin()
+  if (!name.trim()) return { error: "Name is required" }
+  if (!slug.trim() || !/^[a-z0-9-]+$/.test(slug)) return { error: "Slug must be lowercase letters, numbers, hyphens" }
+  try {
+    await prisma.brand.update({ where: { id }, data: { name, slug, logoUrl } })
+  } catch (e: unknown) {
+    if ((e as { code?: string })?.code === "P2002") return { error: "Slug already in use" }
+    return { error: "Failed to update brand" }
+  }
+  await writeAuditLog(admin.id, "brand.update", "Brand", id, { name, slug })
+  revalidatePath("/admin/brands")
+  return {}
+}
+
+export async function deleteBrand(id: string): Promise<{ error?: string }> {
+  const admin = await assertAdmin()
+  const count = await prisma.product.count({ where: { brandId: id } })
+  if (count > 0) return { error: `Cannot delete: ${count} product(s) use this brand` }
+  await prisma.brand.delete({ where: { id } })
+  await writeAuditLog(admin.id, "brand.delete", "Brand", id)
+  revalidatePath("/admin/brands")
   return {}
 }
 
@@ -191,25 +259,28 @@ export async function createBanner(
   displayOrder: number,
   isActive: boolean
 ): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   if (!imageUrl.trim()) return { error: "Image URL is required" }
-  await prisma.banner.create({ data: { imageUrl, title, linkUrl, displayOrder, isActive } })
+  const banner = await prisma.banner.create({ data: { imageUrl, title, linkUrl, displayOrder, isActive } })
+  await writeAuditLog(admin.id, "banner.create", "Banner", banner.id)
   revalidatePath("/admin/banners")
   revalidatePath("/")
   return {}
 }
 
 export async function toggleBanner(id: string, isActive: boolean): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   await prisma.banner.update({ where: { id }, data: { isActive } })
+  await writeAuditLog(admin.id, "banner.toggle", "Banner", id, { isActive })
   revalidatePath("/admin/banners")
   revalidatePath("/")
   return {}
 }
 
 export async function deleteBanner(id: string): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   await prisma.banner.delete({ where: { id } })
+  await writeAuditLog(admin.id, "banner.delete", "Banner", id)
   revalidatePath("/admin/banners")
   revalidatePath("/")
   return {}
@@ -222,9 +293,10 @@ export async function updateBanner(
   linkUrl: string | null,
   displayOrder: number
 ): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   if (!imageUrl.trim()) return { error: "Image URL is required" }
   await prisma.banner.update({ where: { id }, data: { imageUrl, title, linkUrl, displayOrder } })
+  await writeAuditLog(admin.id, "banner.update", "Banner", id)
   revalidatePath("/admin/banners")
   revalidatePath("/")
   return {}
@@ -243,23 +315,26 @@ export async function createVoucher(data: {
   usageLimit: number | null
   isActive: boolean
 }): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   if (!data.code.trim()) return { error: "Code is required" }
   if (!data.title.trim()) return { error: "Title is required" }
   if (data.discountValue <= 0) return { error: "Discount value must be positive" }
+  let voucher: { id: string }
   try {
-    await prisma.voucher.create({ data })
+    voucher = await prisma.voucher.create({ data })
   } catch (e: unknown) {
     if ((e as { code?: string })?.code === "P2002") return { error: "Voucher code already exists" }
     return { error: "Failed to create voucher" }
   }
+  await writeAuditLog(admin.id, "voucher.create", "Voucher", voucher.id, { code: data.code })
   revalidatePath("/admin/vouchers")
   return {}
 }
 
 export async function deactivateVoucher(id: string): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   await prisma.voucher.update({ where: { id }, data: { isActive: false } })
+  await writeAuditLog(admin.id, "voucher.deactivate", "Voucher", id)
   revalidatePath("/admin/vouchers")
   return {}
 }
@@ -274,10 +349,11 @@ export async function updateVoucher(id: string, data: {
   usageLimit: number | null
   isActive: boolean
 }): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   if (!data.title.trim()) return { error: "Title is required" }
   if (data.discountValue <= 0) return { error: "Discount value must be positive" }
   await prisma.voucher.update({ where: { id }, data })
+  await writeAuditLog(admin.id, "voucher.update", "Voucher", id)
   revalidatePath("/admin/vouchers")
   return {}
 }
@@ -293,7 +369,7 @@ export async function createFlashSale(
   isActive: boolean,
   items: FlashSaleItemInput[]
 ): Promise<{ error?: string; id?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   if (!title.trim()) return { error: "Title is required" }
   if (endsAt <= startsAt) return { error: "End time must be after start time" }
 
@@ -313,6 +389,7 @@ export async function createFlashSale(
     return { error: "Failed to create flash sale" }
   }
 
+  await writeAuditLog(admin.id, "flashSale.create", "FlashSale", flashSale.id, { title })
   revalidatePath("/admin/flash-sales")
   revalidatePath("/")
   revalidatePath("/flash-sale")
@@ -327,7 +404,7 @@ export async function updateFlashSale(
   isActive: boolean,
   items: FlashSaleItemInput[]
 ): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   if (!title.trim()) return { error: "Title is required" }
   if (endsAt <= startsAt) return { error: "End time must be after start time" }
 
@@ -350,6 +427,7 @@ export async function updateFlashSale(
     return { error: "Failed to update flash sale" }
   }
 
+  await writeAuditLog(admin.id, "flashSale.update", "FlashSale", id, { title })
   revalidatePath("/admin/flash-sales")
   revalidatePath("/")
   revalidatePath("/flash-sale")
@@ -357,11 +435,12 @@ export async function updateFlashSale(
 }
 
 export async function deleteFlashSale(id: string): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   await prisma.$transaction([
     prisma.flashSaleItem.deleteMany({ where: { flashSaleId: id } }),
     prisma.flashSale.delete({ where: { id } }),
   ])
+  await writeAuditLog(admin.id, "flashSale.delete", "FlashSale", id)
   revalidatePath("/admin/flash-sales")
   revalidatePath("/")
   revalidatePath("/flash-sale")
@@ -374,7 +453,7 @@ const VALID_ORDER_STATUSES = ["PENDING", "PAID", "SHIPPED", "DELIVERED", "CANCEL
 type OrderStatus = typeof VALID_ORDER_STATUSES[number]
 
 export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   if (!VALID_ORDER_STATUSES.includes(status)) return { error: "Invalid status" }
 
   const updates: any[] = [prisma.order.update({ where: { id: orderId }, data: { status } })]
@@ -391,6 +470,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
   const copy = buildOrderStatusCopy(orderId, status)
   if (copy) await createNotification({ userId: order.userId, ...copy })
 
+  await writeAuditLog(admin.id, "order.updateStatus", "Order", orderId, { status })
   revalidatePath(`/admin/orders/${orderId}`)
   revalidatePath("/admin/orders")
   return {}

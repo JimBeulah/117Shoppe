@@ -7,6 +7,7 @@ import { assertAdmin } from "@/lib/admin/actions"
 import { createPaymongoRefund } from "@/lib/payments/paymongo"
 import { createNotification } from "@/lib/notifications/create"
 import { buildOrderStatusCopy } from "@/lib/notifications/copy"
+import { writeAuditLog } from "@/lib/admin/audit"
 
 export async function issueRefund(orderId: string, reason: string): Promise<{ error?: string }> {
   await assertAdmin()
@@ -62,7 +63,9 @@ export async function issueRefund(orderId: string, reason: string): Promise<{ er
     return { error: "Refund failed at the payment gateway. Please try again." }
   }
 
+  await writeAuditLog(admin.id, "payment.refund", "Order", orderId, { reason })
   revalidatePath(`/admin/orders/${orderId}`)
   revalidatePath("/admin/orders")
+  revalidatePath("/admin/payments")
   return {}
 }

@@ -45,7 +45,11 @@ function toOrderBy(sort: CatalogFilters["sort"]) {
 }
 
 export function buildSearchWhere(filters: CatalogFilters): Prisma.ProductWhereInput {
-  const where: Prisma.ProductWhereInput = { isActive: true }
+  const where: Prisma.ProductWhereInput = {
+    isActive: true,
+    status: "APPROVED",
+    shop: { isOnVacation: false },
+  }
 
   if (filters.q) {
     where.OR = [
@@ -97,7 +101,7 @@ export const searchProducts = cache(async (
 export const getParentCategories = cache(async (): Promise<CategoryItem[]> => {
   return prisma.category.findMany({
     where: { parentId: null },
-    select: { id: true, name: true, slug: true, icon: true },
+    select: { id: true, name: true, slug: true, icon: true, imageUrl: true },
     orderBy: { name: "asc" },
   })
 })
@@ -124,7 +128,9 @@ export const getCategoryWithProducts = cache(async (
 
   const where = {
     isActive: true,
+    status: "APPROVED" as const,
     categoryId: { in: categoryIds },
+    shop: { isOnVacation: false },
     price: {
       gte: filters.priceMin,
       ...(filters.priceMax !== null ? { lte: filters.priceMax } : {}),
@@ -152,6 +158,7 @@ export const getCategoryWithProducts = cache(async (
       name: category.name,
       slug: category.slug,
       icon: category.icon,
+      imageUrl: category.imageUrl,
       parent: category.parent,
       children: category.children,
     },
@@ -163,7 +170,7 @@ export const getCategoryWithProducts = cache(async (
 
 export const getProductBySlug = cache(async (slug: string): Promise<ProductDetail | null> => {
   const product = await prisma.product.findUnique({
-    where: { slug },
+    where: { slug, isActive: true, status: "APPROVED" },
     include: {
       variants: true,
       shop: {
@@ -174,6 +181,8 @@ export const getProductBySlug = cache(async (slug: string): Promise<ProductDetai
           logo: true,
           rating: true,
           followersCount: true,
+          isOnVacation: true,
+          vacationMessage: true,
         },
       },
       category: {
@@ -229,7 +238,9 @@ export const getShopBySlug = cache(async (slug: string): Promise<ShopDetail | nu
       rating: true,
       followersCount: true,
       createdAt: true,
-      _count: { select: { products: { where: { isActive: true } } } },
+      isOnVacation: true,
+      vacationMessage: true,
+      _count: { select: { products: { where: { isActive: true, status: "APPROVED" } } } },
     },
   })
   return shop
@@ -241,6 +252,7 @@ export const getShopProducts = cache(async (
 ): Promise<{ products: ProductCard[]; total: number; pageSize: number }> => {
   const where: Prisma.ProductWhereInput = {
     isActive: true,
+    status: "APPROVED",
     shopId,
     ...(filters.priceMin > 0 || filters.priceMax !== null
       ? {

@@ -21,6 +21,12 @@ export function CartShopGroup({ group }: CartShopGroupProps) {
         </Link>
       </div>
 
+      {group.isOnVacation && (
+        <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 text-amber-800 text-xs">
+          This seller is on vacation. Items from this shop cannot be checked out right now.
+        </div>
+      )}
+
       {/* Items */}
       <div className="px-4">
         {group.items.map((item) => (

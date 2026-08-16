@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/data/user'
+import { getShopAccess, canAccess } from '@/lib/seller/access'
 import { getMessages } from '@/lib/data/chat'
 import { prisma } from '@/lib/db'
 
@@ -20,7 +21,8 @@ export async function GET(
   if (!conversation) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const isBuyer = conversation.buyerId === user.id
-  const isSeller = conversation.shop.ownerId === user.id
+  const access = await getShopAccess()
+  const isSeller = !!access && access.shop.id === conversation.shopId && canAccess(access, 'CHAT')
   if (!isBuyer && !isSeller)
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 

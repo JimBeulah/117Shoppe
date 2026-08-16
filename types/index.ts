@@ -22,6 +22,7 @@ export interface CategoryItem {
   name: string
   slug: string
   icon: string | null
+  imageUrl: string | null
 }
 
 export interface BannerItem {
@@ -67,6 +68,7 @@ export interface CatalogCategory {
   name: string
   slug: string
   icon: string | null
+  imageUrl: string | null
   parent: { id: string; name: string; slug: string } | null
   children: { id: string; name: string; slug: string }[]
 }
@@ -123,6 +125,7 @@ export interface CartGroup {
   shopId: string
   shopName: string
   shopSlug: string
+  isOnVacation: boolean
   items: CartItemWithProduct[]
 }
 
@@ -180,6 +183,8 @@ export interface ProductDetail {
     logo: string | null
     rating: number
     followersCount: number
+    isOnVacation: boolean
+    vacationMessage: string | null
   }
   _count: { reviews: number }
 }
@@ -193,6 +198,8 @@ export interface ShopDetail {
   rating: number
   followersCount: number
   createdAt: Date
+  isOnVacation: boolean
+  vacationMessage: string | null
   _count: {
     products: number
   }

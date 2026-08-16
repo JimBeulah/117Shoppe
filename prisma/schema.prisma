@@ -72,6 +72,12 @@ enum PayoutStatus {
   REJECTED
 }
 
+enum ProductStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // ─── Phase 1 Models (seeded) ─────────────────────────────────────────────────
 
 model User {
@@ -101,6 +107,9 @@ model User {
   shopFollows        ShopFollow[]
   buyerConversations Conversation[]   @relation("BuyerConversations")
   refundsInitiated   Refund[]
+  auditLogs          AuditLog[]
+  staffMemberships   ShopStaff[]      @relation("StaffMemberships")
+  staffInvitesSent   ShopStaff[]      @relation("StaffInvitesSent")
 }
 
 model Shop {
@@ -116,6 +125,8 @@ model Shop {
   status         ShopStatus @default(PENDING)
   rejectionReason String?
   commissionRate Float    @default(10)
+  isOnVacation    Boolean  @default(false)
+  vacationMessage String?
 
   owner             User              @relation(fields: [ownerId], references: [id])
   products          Product[]
@@ -125,6 +136,30 @@ model Shop {
   followers         ShopFollow[]
   commissionEntries CommissionEntry[]
   payouts           Payout[]
+  staff             ShopStaff[]
+}
+
+enum StaffPermission {
+  PRODUCTS
+  ORDERS
+  REVIEWS
+  CHAT
+}
+
+model ShopStaff {
+  id          String            @id @default(cuid())
+  shopId      String
+  userId      String
+  permissions StaffPermission[]
+  invitedById String
+  createdAt   DateTime          @default(now())
+
+  shop      Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  user      User @relation("StaffMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy User @relation("StaffInvitesSent", fields: [invitedById], references: [id])
+
+  @@unique([shopId, userId])
+  @@index([userId])
 }
 
 model Category {
@@ -132,6 +167,7 @@ model Category {
   name         String
   slug         String  @unique
   icon         String?
+  imageUrl     String?
   parentId     String?
   displayOrder Int     @default(0)
 
@@ -140,27 +176,41 @@ model Category {
   products Product[]
 }
 
+model Brand {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  logoUrl   String?
+  createdAt DateTime @default(now())
+
+  products Product[]
+}
+
 model Product {
-  id              String    @id @default(cuid())
+  id              String        @id @default(cuid())
   name            String
-  slug            String    @unique
+  slug            String        @unique
   description     String
   price           Float
   originalPrice   Float?
-  stock           Int       @default(0)
-  sold            Int       @default(0)
+  stock           Int           @default(0)
+  sold            Int           @default(0)
   images          String[]
-  rating          Float     @default(0)
-  reviewCount     Int       @default(0)
-  isTrending      Boolean   @default(false)
-  isActive        Boolean   @default(true)
+  rating          Float         @default(0)
+  reviewCount     Int           @default(0)
+  isTrending      Boolean       @default(false)
+  isActive        Boolean       @default(true)
+  status          ProductStatus @default(PENDING)
+  rejectionReason String?
   categoryId      String
+  brandId         String?
   shopId          String
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
   variantOptions  Json?
 
   category       Category        @relation(fields: [categoryId], references: [id])
+  brand          Brand?           @relation(fields: [brandId], references: [id])
   shop           Shop            @relation(fields: [shopId], references: [id])
   variants       ProductVariant[]
   cartItems      CartItem[]
@@ -490,6 +540,9 @@ model SearchHistory {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([query, createdAt])
 }
 
 model Coin {
@@ -501,4 +554,20 @@ model Coin {
   createdAt   DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  action     String
+  targetType String
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
 }

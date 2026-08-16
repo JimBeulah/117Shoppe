@@ -67,6 +67,8 @@ export async function getSellerProducts(shopId: string, page: number, search?: s
         stock: true,
         sold: true,
         isActive: true,
+        status: true,
+        rejectionReason: true,
         images: true,
       },
     }),
@@ -149,6 +151,13 @@ export async function getAllCategories() {
   })
 }
 
+export async function getAllBrands() {
+  return prisma.brand.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  })
+}
+
 export async function getSellerBalance(shopId: string): Promise<SellerBalance> {
   await reconcileEligibleCommissions(shopId)
 
@@ -202,6 +211,19 @@ export async function getSellerPayouts(
     prisma.payout.count({ where: { shopId } }),
   ])
   return { payouts, total, pageSize: PAGE_SIZE }
+}
+
+export async function getShopStaff(shopId: string) {
+  return prisma.shopStaff.findMany({
+    where: { shopId },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      permissions: true,
+      createdAt: true,
+      user: { select: { id: true, name: true, email: true, avatar: true } },
+    },
+  })
 }
 
 export async function getShopReviews(shopId: string): Promise<ShopReviewWithProduct[]> {

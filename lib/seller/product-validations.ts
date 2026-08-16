@@ -10,6 +10,7 @@ export const productFormSchema = z.object({
   description: z.string().trim().min(1, "Description is required"),
   parentCategoryId: z.string().min(1, "Category is required"),
   categoryId: z.string().min(1, "Subcategory is required"),
+  brandId: z.string().optional(),
   price: z.number().min(0, "Price must be non-negative"),
   originalPrice: z.number().min(0).optional(),
   images: z.array(z.string()),

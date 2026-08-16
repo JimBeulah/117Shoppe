@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/data/user'
-import { getCurrentShop } from '@/lib/seller/queries'
+import { getShopAccess, canAccess } from '@/lib/seller/access'
 import { getConversationsForBuyer, getConversationsForSeller } from '@/lib/data/chat'
 
 export async function GET(req: Request) {
@@ -11,9 +11,10 @@ export async function GET(req: Request) {
   const role = searchParams.get('role')
 
   if (role === 'seller') {
-    const shop = await getCurrentShop()
-    if (!shop) return NextResponse.json({ error: 'No shop' }, { status: 400 })
-    const conversations = await getConversationsForSeller(shop.id)
+    const access = await getShopAccess()
+    if (!access || !canAccess(access, 'CHAT'))
+      return NextResponse.json({ error: 'No shop' }, { status: 400 })
+    const conversations = await getConversationsForSeller(access.shop.id)
     return NextResponse.json(conversations)
   }
 

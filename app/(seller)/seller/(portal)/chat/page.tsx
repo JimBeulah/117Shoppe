@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getCurrentUser } from '@/lib/data/user'
-import { getCurrentShop } from '@/lib/seller/queries'
+import { getShopAccess, canAccess } from '@/lib/seller/access'
 import { getConversationsForSeller, toConversationItem } from '@/lib/data/chat'
 import { ConversationList } from '@/components/chat/ConversationList'
 import { ChatWindow } from '@/components/chat/ChatWindow'
@@ -17,8 +17,10 @@ export default async function SellerChatPage({ searchParams }: Props) {
   const user = await getCurrentUser()
   if (!user) redirect('/sign-in')
 
-  const shop = await getCurrentShop()
-  if (!shop) redirect('/seller/onboarding')
+  const access = await getShopAccess()
+  if (!access) redirect('/seller/onboarding')
+  if (!canAccess(access, 'CHAT')) redirect('/seller/dashboard')
+  const shop = access.shop
 
   const { c: conversationId } = await searchParams
   const raw = await getConversationsForSeller(shop.id)

@@ -15,6 +15,8 @@ interface ProductInteractivePanelProps {
   isFlashSale: boolean
   baseStock: number
   variants: ProductVariantItem[]
+  isShopOnVacation?: boolean
+  vacationMessage?: string | null
 }
 
 export function ProductInteractivePanel({
@@ -25,6 +27,8 @@ export function ProductInteractivePanel({
   isFlashSale,
   baseStock,
   variants,
+  isShopOnVacation = false,
+  vacationMessage = null,
 }: ProductInteractivePanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
@@ -43,7 +47,7 @@ export function ProductInteractivePanel({
   return (
     <div className="space-y-4">
       {/* Price */}
-      <div className="flex items-baseline gap-2 flex-wrap">
+      <div className="bg-bg-page rounded-md px-4 py-3 flex items-baseline gap-2 flex-wrap">
         <span className="text-2xl font-bold text-accent-sale">{formatPrice(displayPrice)}</span>
         {comparePrice && discount >= 5 && (
           <>
@@ -56,7 +60,11 @@ export function ProductInteractivePanel({
 
       {/* Stock */}
       <p className="text-xs text-text-secondary">
-        {stock > 0 ? (
+        {isShopOnVacation ? (
+          <span className="text-amber-700 font-medium">
+            Seller is on vacation{vacationMessage ? ` — ${vacationMessage}` : ""}
+          </span>
+        ) : stock > 0 ? (
           <>{stock.toLocaleString()} pieces available</>
         ) : (
           <span className="text-accent-sale font-medium">Out of Stock</span>
@@ -76,7 +84,8 @@ export function ProductInteractivePanel({
       <AddToCartButton
         productId={productId}
         variantId={selectedId}
-        stock={stock}
+        stock={isShopOnVacation ? 0 : stock}
+        outOfStockLabel={isShopOnVacation ? "Seller on Vacation" : "Out of Stock"}
       />
     </div>
   )

@@ -42,6 +42,23 @@ export function ImageGallery({ images, productName }: ImageGalleryProps) {
           ))}
         </div>
       )}
+
+      <div className="flex items-center gap-2 text-xs text-text-secondary pt-1">
+        <span>Share:</span>
+        <div className="flex items-center gap-1.5">
+          {["f", "t", "p"].map((initial) => (
+            <span
+              key={initial}
+              className="w-6 h-6 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-[10px] font-bold uppercase"
+            >
+              {initial}
+            </span>
+          ))}
+        </div>
+        <span className="ml-auto flex items-center gap-1 text-text-secondary">
+          <span aria-hidden>♡</span> Favorite
+        </span>
+      </div>
     </div>
   )
 }

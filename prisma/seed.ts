@@ -39,39 +39,40 @@ async function main() {
   console.log('Seeding database...')
 
   // ── Categories ─────────────────────────────────────────────────────────────
+  // imageUrl values sourced from Wikimedia Commons (freely licensed)
   const catDefs = [
-    { name: "Men's Apparel",            slug: 'mens-apparel',           icon: '👕' },
-    { name: 'Mobiles & Gadgets',        slug: 'mobiles-gadgets',        icon: '📱' },
-    { name: 'Mobiles Accessories',      slug: 'mobiles-accessories',    icon: '🔌' },
-    { name: 'Home Entertainment',       slug: 'home-entertainment',     icon: '📺' },
-    { name: 'Babies & Kids',            slug: 'babies-kids',            icon: '👶' },
-    { name: 'Home & Living',            slug: 'home-living',            icon: '🏠' },
-    { name: 'Groceries',                slug: 'groceries',              icon: '🛒' },
-    { name: 'Toys, Games & Collectibles', slug: 'toys-games-collectibles', icon: '🧸' },
-    { name: "Women's Bags",             slug: 'womens-bags',            icon: '👜' },
-    { name: 'Women Accessories',        slug: 'women-accessories',      icon: '💍' },
-    { name: "Women's Apparel",          slug: 'womens-apparel',         icon: '👗' },
-    { name: 'Health & Personal Care',   slug: 'health-personal-care',   icon: '💊' },
-    { name: 'Makeup & Fragrances',      slug: 'makeup-fragrances',      icon: '💄' },
-    { name: 'Home Appliances',          slug: 'home-appliances',        icon: '🍳' },
-    { name: 'Laptops & Computers',      slug: 'laptops-computers',      icon: '💻' },
-    { name: 'Cameras',                  slug: 'cameras',                icon: '📷' },
-    { name: 'Sports & Travel',          slug: 'sports-travel',          icon: '⚽' },
-    { name: "Men's Bags & Accessories", slug: 'mens-bags-accessories',  icon: '🎒' },
-    { name: "Men's Shoes",              slug: 'mens-shoes',             icon: '👟' },
-    { name: 'Motors',                   slug: 'motors',                 icon: '🏍️' },
-    { name: "Women's Shoes",            slug: 'womens-shoes',           icon: '👠' },
-    { name: 'Pet Care',                 slug: 'pet-care',               icon: '🐾' },
-    { name: 'Audio',                    slug: 'audio',                  icon: '🎧' },
-    { name: 'Hobbies & Stationery',     slug: 'hobbies-stationery',     icon: '✏️' },
-    { name: 'Gaming',                   slug: 'gaming',                 icon: '🎮' },
+    { name: "Men's Apparel",            slug: 'mens-apparel',           icon: '👕', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Plaid_IZOD_men%27s_shirt.jpg/500px-Plaid_IZOD_men%27s_shirt.jpg' },
+    { name: 'Mobiles & Gadgets',        slug: 'mobiles-gadgets',        icon: '📱', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Electronic_gadgets.jpg/500px-Electronic_gadgets.jpg' },
+    { name: 'Mobiles Accessories',      slug: 'mobiles-accessories',    icon: '🔌', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/MagSafe_and_USB-C_Cable_Charger_for_iPhone.jpg/500px-MagSafe_and_USB-C_Cable_Charger_for_iPhone.jpg' },
+    { name: 'Home Entertainment',       slug: 'home-entertainment',     icon: '📺', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/A_flat-screen_television.jpg/500px-A_flat-screen_television.jpg' },
+    { name: 'Babies & Kids',            slug: 'babies-kids',            icon: '👶', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Plastic_baby_rattle_toy.jpg/500px-Plastic_baby_rattle_toy.jpg' },
+    { name: 'Home & Living',            slug: 'home-living',            icon: '🏠', imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Living_room_display_at_Aaron%E2%80%99s_Inc.jpg/500px-Living_room_display_at_Aaron%E2%80%99s_Inc.jpg" },
+    { name: 'Groceries',                slug: 'groceries',              icon: '🛒', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Fresh_fruits_and_vegetables_in_2020_02.jpg/500px-Fresh_fruits_and_vegetables_in_2020_02.jpg' },
+    { name: 'Toys, Games & Collectibles', slug: 'toys-games-collectibles', icon: '🧸', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Soldier_action_figures.jpg/500px-Soldier_action_figures.jpg' },
+    { name: "Women's Bags",             slug: 'womens-bags',            icon: '👜', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Handbag_and_purse_%28AM_2016.7.19-6%29.jpg/500px-Handbag_and_purse_%28AM_2016.7.19-6%29.jpg' },
+    { name: 'Women Accessories',        slug: 'women-accessories',      icon: '💍', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Silver_necklace_and_strawberries_by_ASQ.jpg/500px-Silver_necklace_and_strawberries_by_ASQ.jpg' },
+    { name: "Women's Apparel",          slug: 'womens-apparel',         icon: '👗', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/ArtAmbient_boutique_interior_Arta.jpg/500px-ArtAmbient_boutique_interior_Arta.jpg' },
+    { name: 'Health & Personal Care',   slug: 'health-personal-care',   icon: '💊', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Decorative_Soaps.jpg/500px-Decorative_Soaps.jpg' },
+    { name: 'Makeup & Fragrances',      slug: 'makeup-fragrances',      icon: '💄', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Perfume_set_from_Sovjetunio_cca_1965.jpg/500px-Perfume_set_from_Sovjetunio_cca_1965.jpg' },
+    { name: 'Home Appliances',          slug: 'home-appliances',        icon: '🍳', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Breville.jpg/500px-Breville.jpg' },
+    { name: 'Laptops & Computers',      slug: 'laptops-computers',      icon: '💻', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Laptop_computer.jpeg/500px-Laptop_computer.jpeg' },
+    { name: 'Cameras',                  slug: 'cameras',                icon: '📷', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Nikon_Z30.jpg/500px-Nikon_Z30.jpg' },
+    { name: 'Sports & Travel',          slug: 'sports-travel',          icon: '⚽', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Travel_luggage.png/500px-Travel_luggage.png' },
+    { name: "Men's Bags & Accessories", slug: 'mens-bags-accessories',  icon: '🎒', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Pack_A_Bag_%28Unsplash%29.jpg/500px-Pack_A_Bag_%28Unsplash%29.jpg' },
+    { name: "Men's Shoes",              slug: 'mens-shoes',             icon: '👟', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/White_sneakers.jpg/500px-White_sneakers.jpg' },
+    { name: 'Motors',                   slug: 'motors',                 icon: '🏍️', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Motorbike_rider_mono.jpg/500px-Motorbike_rider_mono.jpg' },
+    { name: "Women's Shoes",            slug: 'womens-shoes',           icon: '👠', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Black_high_heels_and_knee_stockings_%2820241019161234%29.jpg/500px-Black_high_heels_and_knee_stockings_%2820241019161234%29.jpg' },
+    { name: 'Pet Care',                 slug: 'pet-care',               icon: '🐾', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Cat_and_dog_sleeping_together.jpeg/500px-Cat_and_dog_sleeping_together.jpeg' },
+    { name: 'Audio',                    slug: 'audio',                  icon: '🎧', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Afterglow_AGU.1_Wireless_Headphones.jpg/500px-Afterglow_AGU.1_Wireless_Headphones.jpg' },
+    { name: 'Hobbies & Stationery',     slug: 'hobbies-stationery',     icon: '✏️', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Emerging_professions-_stationery_store_%288347831015%29.jpg/500px-Emerging_professions-_stationery_store_%288347831015%29.jpg' },
+    { name: 'Gaming',                   slug: 'gaming',                 icon: '🎮', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Nintendo-Switch-Pro-Controller-FL.jpg/500px-Nintendo-Switch-Pro-Controller-FL.jpg' },
   ]
 
   const categories = await Promise.all(
     catDefs.map((cat, i) =>
       prisma.category.upsert({
         where: { slug: cat.slug },
-        update: { displayOrder: i + 1 },
+        update: { displayOrder: i + 1, icon: cat.icon, imageUrl: cat.imageUrl },
         create: { ...cat, displayOrder: i + 1 },
       })
     )
@@ -151,8 +152,8 @@ async function main() {
   for (const { slug, ...rest } of productData) {
     await prisma.product.upsert({
       where: { slug },
-      update: { categoryId: rest.categoryId },
-      create: { slug, ...rest },
+      update: { categoryId: rest.categoryId, status: 'APPROVED' },
+      create: { slug, ...rest, status: 'APPROVED' },
     })
   }
 

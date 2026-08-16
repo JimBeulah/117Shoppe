@@ -16,6 +16,7 @@ export interface UpsertProductData {
   slug: string
   description: string
   categoryId: string
+  brandId?: string | null
   price: number
   originalPrice?: number
   images: string[]
@@ -31,6 +32,10 @@ export interface UpsertProductData {
   isActive: boolean
 }
 
+export type BulkProductPatch =
+  | { type: "setActive"; isActive: boolean }
+  | { type: "adjustPrice"; mode: "percent" | "fixed"; direction: "increase" | "decrease"; value: number }
+
 export interface SellerProductRow {
   id: string
   name: string
@@ -38,6 +43,8 @@ export interface SellerProductRow {
   stock: number
   sold: number
   isActive: boolean
+  status: "PENDING" | "APPROVED" | "REJECTED"
+  rejectionReason: string | null
   images: string[]
 }
 
@@ -67,4 +74,18 @@ export interface CategoryItem {
   id: string
   name: string
   parentId: string | null
+}
+
+export interface BrandItem {
+  id: string
+  name: string
+}
+
+export type StaffPermissionValue = "PRODUCTS" | "ORDERS" | "REVIEWS" | "CHAT"
+
+export interface StaffMember {
+  id: string
+  permissions: StaffPermissionValue[]
+  createdAt: Date
+  user: { id: string; name: string; email: string; avatar: string | null }
 }

@@ -20,3 +20,12 @@ export const updateShopSchema = z.object({
 })
 
 export type UpdateShopInput = z.infer<typeof updateShopSchema>
+
+export const addStaffSchema = z.object({
+  email: z.string().trim().email("Enter a valid email"),
+  permissions: z
+    .array(z.enum(["PRODUCTS", "ORDERS", "REVIEWS", "CHAT"]))
+    .min(1, "Select at least one permission"),
+})
+
+export type AddStaffInput = z.infer<typeof addStaffSchema>

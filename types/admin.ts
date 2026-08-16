@@ -58,6 +58,8 @@ export interface AdminProductRow {
   price: number
   stock: number
   isActive: boolean
+  status: string
+  rejectionReason: string | null
   createdAt: Date
   shop: { name: string }
   category: { name: string }
@@ -68,9 +70,29 @@ export interface AdminCategoryRow {
   name: string
   slug: string
   icon: string | null
+  imageUrl: string | null
   parentId: string | null
   parent: { name: string } | null
   _count: { products: number }
+}
+
+export interface AdminBrandRow {
+  id: string
+  name: string
+  slug: string
+  logoUrl: string | null
+  createdAt: Date
+  _count: { products: number }
+}
+
+export interface AdminAuditLogRow {
+  id: string
+  action: string
+  targetType: string
+  targetId: string | null
+  metadata: unknown
+  createdAt: Date
+  actor: { id: string; name: string; email: string }
 }
 
 export interface AdminBannerRow {

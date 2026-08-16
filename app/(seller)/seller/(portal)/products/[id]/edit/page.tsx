@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation"
 import { getCurrentUser } from "@/lib/data/user"
-import { getCurrentShop, getAllCategories, getSellerProductForEdit } from "@/lib/seller/queries"
+import { getAllCategories, getAllBrands, getSellerProductForEdit } from "@/lib/seller/queries"
+import { getShopAccess, canAccess } from "@/lib/seller/access"
 import ProductFormClient from "@/components/seller/ProductFormClient"
 import type { VariantOption } from "@/types/seller"
 
@@ -15,12 +16,15 @@ export default async function EditProductPage({ params }: Props) {
   const user = await getCurrentUser()
   if (!user) redirect("/sign-in")
 
-  const shop = await getCurrentShop()
-  if (!shop) redirect("/seller/onboarding")
+  const access = await getShopAccess()
+  if (!access) redirect("/seller/onboarding")
+  if (!canAccess(access, "PRODUCTS")) redirect("/seller/dashboard")
+  const shop = access.shop
 
-  const [product, categories] = await Promise.all([
+  const [product, categories, brands] = await Promise.all([
     getSellerProductForEdit(id, shop.id),
     getAllCategories(),
+    getAllBrands(),
   ])
 
   if (!product) notFound()
@@ -30,6 +34,7 @@ export default async function EditProductPage({ params }: Props) {
       <h1 className="text-xl font-bold text-text-primary">Edit Product</h1>
       <ProductFormClient
         categories={categories}
+        brands={brands}
         initial={{
           id: product.id,
           name: product.name,
@@ -40,6 +45,7 @@ export default async function EditProductPage({ params }: Props) {
           images: product.images,
           stock: product.stock,
           categoryId: product.categoryId,
+          brandId: product.brandId,
           isActive: product.isActive,
           variantOptions: product.variantOptions as VariantOption[] | null,
           variants: product.variants.map((v) => ({

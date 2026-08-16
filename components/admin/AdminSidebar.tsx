@@ -12,9 +12,13 @@ const NAV = [
   { label: "Orders", href: "/admin/orders" },
   { label: "Products", href: "/admin/products" },
   { label: "Categories", href: "/admin/categories" },
+  { label: "Brands", href: "/admin/brands" },
   { label: "Banners", href: "/admin/banners" },
   { label: "Vouchers", href: "/admin/vouchers" },
   { label: "Flash Sales", href: "/admin/flash-sales" },
+  { label: "Payments", href: "/admin/payments" },
+  { label: "Reports", href: "/admin/reports" },
+  { label: "Audit Logs", href: "/admin/audit-logs" },
 ]
 
 export default function AdminSidebar({ userName }: { userName: string }) {

@@ -32,6 +32,7 @@ export const getCart = cache(async (): Promise<CartGroup[] | null> => {
         shopId: shop.id,
         shopName: shop.name,
         shopSlug: shop.slug,
+        isOnVacation: shop.isOnVacation,
         items: [],
       })
     }

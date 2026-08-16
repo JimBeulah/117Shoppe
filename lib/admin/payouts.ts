@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/data/user"
 import { assertAdmin } from "@/lib/admin/actions"
 import { createNotification } from "@/lib/notifications/create"
 import { buildPayoutPaidCopy, buildPayoutRejectedCopy } from "@/lib/notifications/copy"
+import { writeAuditLog } from "@/lib/admin/audit"
 
 export async function markPayoutPaid(payoutId: string, referenceNote: string): Promise<{ error?: string }> {
   await assertAdmin()
@@ -42,13 +43,14 @@ export async function markPayoutPaid(payoutId: string, referenceNote: string): P
     ...buildPayoutPaidCopy(payout.id, payout.amount),
   })
 
+  await writeAuditLog(admin.id, "payout.markPaid", "Payout", payoutId, { referenceNote })
   revalidatePath("/admin/payouts")
   revalidatePath("/seller/payouts")
   return {}
 }
 
 export async function rejectPayoutRequest(payoutId: string, reason: string): Promise<{ error?: string }> {
-  await assertAdmin()
+  const admin = await assertAdmin()
   if (!reason.trim()) return { error: "A reason is required" }
 
   const payout = await prisma.payout.findUnique({
@@ -76,6 +78,7 @@ export async function rejectPayoutRequest(payoutId: string, reason: string): Pro
     ...buildPayoutRejectedCopy(payout.id, reason),
   })
 
+  await writeAuditLog(admin.id, "payout.reject", "Payout", payoutId, { reason })
   revalidatePath("/admin/payouts")
   revalidatePath("/seller/payouts")
   return {}
