@@ -78,6 +78,58 @@ enum ProductStatus {
   REJECTED
 }
 
+enum DeliveryStatus {
+  PACKED
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED
+}
+
+enum ReturnRequestType {
+  REFUND_ONLY
+  RETURN_AND_REFUND
+}
+
+enum ReturnRequestReason {
+  ITEM_NOT_RECEIVED
+  ITEM_DEFECTIVE
+  WRONG_ITEM_SENT
+  MISSING_PARTS
+  NOT_AS_DESCRIBED
+  CHANGED_MIND
+  OTHER
+}
+
+enum ReturnRequestStatus {
+  PENDING_SELLER
+  SELLER_APPROVED
+  SELLER_REJECTED
+  ADMIN_REVIEW
+  ADMIN_APPROVED
+  ADMIN_REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+enum OrderEventType {
+  ORDER_PLACED
+  PAYMENT_RECEIVED
+  ORDER_SHIPPED
+  DELIVERY_STATUS_UPDATED
+  ORDER_DELIVERED
+  ORDER_CANCELLED
+  RETURN_REQUESTED
+  RETURN_SELLER_APPROVED
+  RETURN_SELLER_REJECTED
+  RETURN_ESCALATED_TO_ADMIN
+  RETURN_ADMIN_APPROVED
+  RETURN_ADMIN_REJECTED
+  RETURN_CANCELLED_BY_BUYER
+  REFUND_ISSUED
+  ORDER_STATUS_CHANGED_BY_ADMIN
+}
+
 // ─── Phase 1 Models (seeded) ─────────────────────────────────────────────────
 
 model User {
@@ -110,6 +162,10 @@ model User {
   auditLogs          AuditLog[]
   staffMemberships   ShopStaff[]      @relation("StaffMemberships")
   staffInvitesSent   ShopStaff[]      @relation("StaffInvitesSent")
+  returnRequestsFiled        ReturnRequest[]      @relation("ReturnRequestsFiled")
+  returnRequestsSellerDecided ReturnRequest[]      @relation("ReturnRequestsSellerDecided")
+  returnRequestsAdminDecided  ReturnRequest[]      @relation("ReturnRequestsAdminDecided")
+  timelineEventsActed        OrderTimelineEvent[]
 }
 
 model Shop {
@@ -137,6 +193,8 @@ model Shop {
   commissionEntries CommissionEntry[]
   payouts           Payout[]
   staff             ShopStaff[]
+  shippingMethods   ShopShippingMethod[]
+  returnRequests    ReturnRequest[]
 }
 
 enum StaffPermission {
@@ -284,28 +342,33 @@ model CartItem {
 }
 
 model Order {
-  id            String      @id @default(cuid())
-  userId        String
-  shopId        String
-  status        OrderStatus @default(PENDING)
-  total         Float
-  shippingFee   Float       @default(0)
-  discountAmount Float      @default(0)
-  paymentMethod String?
-  addressId     String
-  voucherId     String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id                 String      @id @default(cuid())
+  userId             String
+  shopId             String
+  status             OrderStatus @default(PENDING)
+  total              Float
+  shippingFee        Float       @default(0)
+  discountAmount     Float       @default(0)
+  paymentMethod      String?
+  addressId          String
+  voucherId          String?
+  shippingMethodId   String?
+  shippingMethodName String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
 
-  user     User        @relation(fields: [userId], references: [id])
-  shop     Shop        @relation(fields: [shopId], references: [id])
-  address  Address     @relation(fields: [addressId], references: [id])
-  voucher  Voucher?    @relation(fields: [voucherId], references: [id])
+  user           User            @relation(fields: [userId], references: [id])
+  shop           Shop            @relation(fields: [shopId], references: [id])
+  address        Address         @relation(fields: [addressId], references: [id])
+  voucher        Voucher?        @relation(fields: [voucherId], references: [id])
+  shippingMethod ShippingMethod? @relation(fields: [shippingMethodId], references: [id])
   items           OrderItem[]
   payment         Payment?
   shipment        Shipment?
   refund          Refund?
   commissionEntry CommissionEntry?
+  returnRequest   ReturnRequest?
+  timelineEvents  OrderTimelineEvent[]
 }
 
 model OrderItem {
@@ -371,6 +434,62 @@ model Refund {
   payment     Payment @relation(fields: [paymentId], references: [id])
   order       Order   @relation(fields: [orderId], references: [id])
   initiatedBy User    @relation(fields: [initiatedByUserId], references: [id])
+  returnRequest ReturnRequest?
+}
+
+model ReturnRequest {
+  id          String              @id @default(cuid())
+  orderId     String              @unique
+  buyerId     String
+  shopId      String
+
+  type        ReturnRequestType
+  reason      ReturnRequestReason
+  description String
+  evidenceUrls String[]           @default([])
+
+  status      ReturnRequestStatus @default(PENDING_SELLER)
+
+  sellerReviewDeadline  DateTime
+  sellerDecisionNote    String?
+  sellerDecidedAt       DateTime?
+  sellerDecidedByUserId String?
+
+  adminDecisionNote    String?
+  adminDecidedAt       DateTime?
+  adminDecidedByUserId String?
+
+  refundId   String?  @unique
+  resolvedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order           Order   @relation(fields: [orderId], references: [id])
+  buyer           User    @relation("ReturnRequestsFiled", fields: [buyerId], references: [id])
+  shop            Shop    @relation(fields: [shopId], references: [id])
+  sellerDecidedBy User?   @relation("ReturnRequestsSellerDecided", fields: [sellerDecidedByUserId], references: [id])
+  adminDecidedBy  User?   @relation("ReturnRequestsAdminDecided", fields: [adminDecidedByUserId], references: [id])
+  refund          Refund? @relation(fields: [refundId], references: [id])
+
+  @@index([shopId, status])
+  @@index([status, sellerReviewDeadline])
+}
+
+model OrderTimelineEvent {
+  id        String         @id @default(cuid())
+  orderId   String
+  type      OrderEventType
+  message   String
+  actorId   String?
+  actorRole Role?
+  metadata  Json?
+  createdAt DateTime       @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([orderId, createdAt])
 }
 
 model CommissionEntry {
@@ -411,14 +530,61 @@ model Payout {
 }
 
 model Shipment {
-  id                String    @id @default(cuid())
-  orderId           String    @unique
+  id                String         @id @default(cuid())
+  orderId           String         @unique
   courier           String?
   trackingNumber    String?
-  status            String?
+  status            DeliveryStatus @default(PACKED)
   estimatedDelivery DateTime?
 
   order Order @relation(fields: [orderId], references: [id])
+}
+
+model ShippingMethod {
+  id          String   @id @default(cuid())
+  name        String
+  carrier     String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  rates     ShippingRate[]
+  shopLinks ShopShippingMethod[]
+  orders    Order[]
+}
+
+model ShippingZone {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  provinces String[]
+
+  rates ShippingRate[]
+}
+
+model ShippingRate {
+  id               String @id @default(cuid())
+  methodId         String
+  zoneId           String
+  price            Float
+  estimatedDaysMin Int
+  estimatedDaysMax Int
+
+  method ShippingMethod @relation(fields: [methodId], references: [id])
+  zone   ShippingZone   @relation(fields: [zoneId], references: [id])
+
+  @@unique([methodId, zoneId])
+}
+
+model ShopShippingMethod {
+  id        String  @id @default(cuid())
+  shopId    String
+  methodId  String
+  isEnabled Boolean @default(true)
+
+  shop   Shop           @relation(fields: [shopId], references: [id])
+  method ShippingMethod @relation(fields: [methodId], references: [id])
+
+  @@unique([shopId, methodId])
 }
 
 // ─── Phase 4+ Models ─────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/data/user"
 import { createNotification } from "@/lib/notifications/create"
 import { buildBuyerCancelledCopy, buildOrderReceivedCopy } from "@/lib/notifications/copy"
 import { PAYOUT_BUFFER_DAYS } from "@/lib/payouts/config"
+import { logOrderEvent } from "@/lib/orders/timeline"
 
 export async function cancelOrder(orderId: string): Promise<{ error?: string }> {
   const user = await getCurrentUser()
@@ -20,7 +21,16 @@ export async function cancelOrder(orderId: string): Promise<{ error?: string }> 
     return { error: "This order can no longer be cancelled" }
   }
 
-  await prisma.order.update({ where: { id: orderId }, data: { status: "CANCELLED" } })
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED" } })
+    await logOrderEvent(tx, {
+      orderId,
+      type: "ORDER_CANCELLED",
+      message: "Order cancelled by buyer.",
+      actorId: user.id,
+      actorRole: "BUYER",
+    })
+  })
 
   await createNotification({
     userId: order.shop.ownerId,
@@ -49,10 +59,10 @@ export async function markOrderReceived(orderId: string): Promise<{ error?: stri
   const commissionAmount = order.total * (commissionRate / 100)
   const eligibleAt = new Date(Date.now() + PAYOUT_BUFFER_DAYS * 24 * 60 * 60 * 1000)
 
-  await prisma.$transaction([
-    prisma.order.update({ where: { id: orderId }, data: { status: "DELIVERED" } }),
-    prisma.shipment.updateMany({ where: { orderId }, data: { status: "DELIVERED" } }),
-    prisma.commissionEntry.create({
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({ where: { id: orderId }, data: { status: "DELIVERED" } })
+    await tx.shipment.updateMany({ where: { orderId }, data: { status: "DELIVERED" } })
+    await tx.commissionEntry.create({
       data: {
         orderId: order.id,
         shopId: order.shop.id,
@@ -62,8 +72,15 @@ export async function markOrderReceived(orderId: string): Promise<{ error?: stri
         netAmount: order.total - commissionAmount,
         eligibleAt,
       },
-    }),
-  ])
+    })
+    await logOrderEvent(tx, {
+      orderId,
+      type: "ORDER_DELIVERED",
+      message: "Buyer confirmed receipt of the order.",
+      actorId: user.id,
+      actorRole: "BUYER",
+    })
+  })
 
   await createNotification({
     userId: order.shop.ownerId,

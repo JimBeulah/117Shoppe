@@ -15,6 +15,7 @@ import {
 } from "@/lib/notifications/copy"
 import { reconcileEligibleCommissions } from "@/lib/payouts/reconcile"
 import { MIN_PAYOUT_AMOUNT } from "@/lib/payouts/config"
+import { logOrderEvent } from "@/lib/orders/timeline"
 import type { UpsertProductData, BulkProductPatch } from "@/types/seller"
 import type { StaffPermission } from "@/lib/generated/prisma/client"
 
@@ -306,6 +307,22 @@ export async function bulkUpdateProducts(
   return { updated: owned.length }
 }
 
+// ─── Shipping Methods ─────────────────────────────────────────────────────────
+
+export async function toggleShopShippingMethod(methodId: string, isEnabled: boolean): Promise<{ error?: string }> {
+  const shop = await requireShopAccess()
+  if (!shop || shop.status !== "ACTIVE") return { error: "Unauthorized" }
+
+  await prisma.shopShippingMethod.upsert({
+    where: { shopId_methodId: { shopId: shop.id, methodId } },
+    create: { shopId: shop.id, methodId, isEnabled },
+    update: { isEnabled },
+  })
+
+  revalidatePath("/seller/settings")
+  return {}
+}
+
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
 export async function shipOrder(
@@ -320,17 +337,78 @@ export async function shipOrder(
   if (!order || order.shopId !== shop.id) return { error: "Not found" }
   if (order.status !== "PAID") return { error: "Order must be PAID to mark as shipped" }
 
-  await prisma.$transaction([
-    prisma.order.update({ where: { id: orderId }, data: { status: "SHIPPED" } }),
-    prisma.shipment.upsert({
+  const seller = await getCurrentUser()
+
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({ where: { id: orderId }, data: { status: "SHIPPED" } })
+    await tx.shipment.upsert({
       where: { orderId },
       create: { orderId, courier, trackingNumber, status: "SHIPPED" },
       update: { courier, trackingNumber, status: "SHIPPED" },
-    }),
-  ])
+    })
+    await logOrderEvent(tx, {
+      orderId,
+      type: "ORDER_SHIPPED",
+      message: `Order shipped via ${courier}${trackingNumber ? ` (tracking: ${trackingNumber})` : ""}.`,
+      actorId: seller?.id,
+      actorRole: "SELLER",
+    })
+  })
 
   const shippedCopy = buildOrderStatusCopy(orderId, "SHIPPED")
   if (shippedCopy) await createNotification({ userId: order.userId, ...shippedCopy })
+
+  revalidatePath(`/seller/orders/${orderId}`)
+  revalidatePath("/seller/orders")
+  return {}
+}
+
+const DELIVERY_STATUS_ORDER = ["PACKED", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "FAILED"] as const
+type DeliveryStatusValue = (typeof DELIVERY_STATUS_ORDER)[number]
+
+export async function updateDeliveryStatus(orderId: string, status: DeliveryStatusValue): Promise<{ error?: string }> {
+  const shop = await requireShopAccess("ORDERS")
+  if (!shop || shop.status !== "ACTIVE") return { error: "Unauthorized" }
+  if (!DELIVERY_STATUS_ORDER.includes(status)) return { error: "Invalid status" }
+
+  const order = await prisma.order.findUnique({ where: { id: orderId }, include: { shipment: true } })
+  if (!order || order.shopId !== shop.id) return { error: "Not found" }
+  if (order.status !== "SHIPPED") return { error: "Order must be SHIPPED before updating delivery status" }
+  if (!order.shipment) return { error: "No shipment on file for this order" }
+
+  const currentIndex = DELIVERY_STATUS_ORDER.indexOf(order.shipment.status as DeliveryStatusValue)
+  const nextIndex = DELIVERY_STATUS_ORDER.indexOf(status)
+  if (nextIndex <= currentIndex) return { error: "Delivery status can only move forward" }
+
+  const seller = await getCurrentUser()
+
+  await prisma.$transaction(async (tx) => {
+    await tx.shipment.update({ where: { orderId }, data: { status } })
+    if (status === "DELIVERED") {
+      await tx.order.update({ where: { id: orderId }, data: { status: "DELIVERED" } })
+    }
+    await logOrderEvent(tx, {
+      orderId,
+      type: "DELIVERY_STATUS_UPDATED",
+      message: `Delivery status updated to ${status.replaceAll("_", " ").toLowerCase()}.`,
+      actorId: seller?.id,
+      actorRole: "SELLER",
+    })
+    if (status === "DELIVERED") {
+      await logOrderEvent(tx, {
+        orderId,
+        type: "ORDER_DELIVERED",
+        message: "Order delivered.",
+        actorId: seller?.id,
+        actorRole: "SELLER",
+      })
+    }
+  })
+
+  if (status === "DELIVERED") {
+    const deliveredCopy = buildOrderStatusCopy(orderId, "DELIVERED")
+    if (deliveredCopy) await createNotification({ userId: order.userId, ...deliveredCopy })
+  }
 
   revalidatePath(`/seller/orders/${orderId}`)
   revalidatePath("/seller/orders")
@@ -345,7 +423,18 @@ export async function cancelOrder(orderId: string): Promise<{ error?: string }> 
   if (!order || order.shopId !== shop.id) return { error: "Not found" }
   if (order.status !== "PAID") return { error: "Only PAID orders can be cancelled" }
 
-  await prisma.order.update({ where: { id: orderId }, data: { status: "CANCELLED" } })
+  const seller = await getCurrentUser()
+
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED" } })
+    await logOrderEvent(tx, {
+      orderId,
+      type: "ORDER_CANCELLED",
+      message: "Order cancelled by seller.",
+      actorId: seller?.id,
+      actorRole: "SELLER",
+    })
+  })
 
   const cancelledCopy = buildOrderStatusCopy(orderId, "CANCELLED")
   if (cancelledCopy) await createNotification({ userId: order.userId, ...cancelledCopy })

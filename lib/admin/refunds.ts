@@ -4,10 +4,8 @@ import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
 import { assertAdmin } from "@/lib/admin/actions"
-import { createPaymongoRefund } from "@/lib/payments/paymongo"
-import { createNotification } from "@/lib/notifications/create"
-import { buildOrderStatusCopy } from "@/lib/notifications/copy"
 import { writeAuditLog } from "@/lib/admin/audit"
+import { executeRefund } from "@/lib/payments/refund-core"
 
 export async function issueRefund(orderId: string, reason: string): Promise<{ error?: string }> {
   await assertAdmin()
@@ -23,49 +21,34 @@ export async function issueRefund(orderId: string, reason: string): Promise<{ er
   if (order.status !== "PAID" && order.status !== "CANCELLED") {
     return { error: "Order is not eligible for a refund" }
   }
-  if (order.payment.status !== "PAID") return { error: "Payment was not captured — nothing to refund" }
   if (order.payment.provider !== "PAYMONGO") return { error: "Only online payments can be refunded here" }
   if (order.refund) return { error: "This order has already been refunded" }
-  if (!order.payment.externalPaymentId) return { error: "No captured payment reference found for this order" }
 
-  try {
-    const gatewayRefund = await createPaymongoRefund(
-      order.payment.externalPaymentId,
-      order.payment.amount,
-      reason
-    )
-
-    await prisma.$transaction([
-      prisma.refund.create({
-        data: {
-          paymentId: order.payment.id,
-          orderId: order.id,
-          amount: order.payment.amount,
-          status: "SUCCEEDED",
-          reason,
-          initiatedByUserId: admin.id,
-          gatewayRefundId: gatewayRefund.id,
-          processedAt: new Date(),
-        },
-      }),
-      prisma.payment.update({ where: { id: order.payment.id }, data: { status: "REFUNDED" } }),
-      prisma.order.update({ where: { id: order.id }, data: { status: "REFUNDED" } }),
-      prisma.commissionEntry.updateMany({
-        where: { orderId: order.id, status: { in: ["PENDING", "AVAILABLE"] } },
-        data: { status: "REVERSED" },
-      }),
-    ])
-
-    const copy = buildOrderStatusCopy(order.id, "REFUNDED")
-    if (copy) await createNotification({ userId: order.userId, ...copy })
-  } catch (err) {
-    console.error("[refund] issueRefund failed:", err)
-    return { error: "Refund failed at the payment gateway. Please try again." }
-  }
+  const result = await executeRefund({ orderId, reason, initiatedByUserId: admin.id })
+  if (result.error) return result
 
   await writeAuditLog(admin.id, "payment.refund", "Order", orderId, { reason })
   revalidatePath(`/admin/orders/${orderId}`)
   revalidatePath("/admin/orders")
   revalidatePath("/admin/payments")
+  return {}
+}
+
+export async function markRefundSettled(refundId: string): Promise<{ error?: string }> {
+  const admin = await assertAdmin()
+
+  const refund = await prisma.refund.findUnique({ where: { id: refundId } })
+  if (!refund) return { error: "Refund not found" }
+  if (refund.status !== "PENDING") return { error: "This refund is not awaiting settlement" }
+
+  await prisma.refund.update({
+    where: { id: refundId },
+    data: { status: "SUCCEEDED", processedAt: new Date() },
+  })
+
+  await writeAuditLog(admin.id, "payment.markRefundSettled", "Refund", refundId)
+  revalidatePath(`/admin/orders/${refund.orderId}`)
+  revalidatePath("/admin/payments")
+  revalidatePath("/admin/returns")
   return {}
 }

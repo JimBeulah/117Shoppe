@@ -1,0 +1,2 @@
+export const RETURN_WINDOW_DAYS = 7
+export const SELLER_RETURN_REVIEW_HOURS = 48

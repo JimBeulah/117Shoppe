@@ -2,8 +2,9 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import { getAdminOrderDetail } from "@/lib/admin/queries"
 import { updateOrderStatus } from "@/lib/admin/actions"
-import { issueRefund } from "@/lib/admin/refunds"
+import { issueRefund, markRefundSettled } from "@/lib/admin/refunds"
 import OrderStatusBadge from "@/components/admin/OrderStatusBadge"
+import { OrderTimeline } from "@/components/orders/OrderTimeline"
 import { formatPrice } from "@/lib/utils"
 
 const ORDER_STATUSES = ["PENDING", "PAID", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"] as const
@@ -88,6 +89,22 @@ export default async function AdminOrderDetailPage({ params }: Props) {
         </div>
       </div>
 
+      {/* Return/Refund Request */}
+      {order.returnRequest && (
+        <div className="bg-white rounded-lg border border-border-default p-5 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-text-secondary uppercase tracking-wide">Return/Refund Request</p>
+            <p className="text-sm text-text-primary">{order.returnRequest.status.replaceAll("_", " ")}</p>
+          </div>
+          <Link
+            href={`/admin/returns/${order.returnRequest.id}`}
+            className="text-sm text-brand-600 hover:underline"
+          >
+            View Request →
+          </Link>
+        </div>
+      )}
+
       {/* Items */}
       <div className="bg-white rounded-lg border border-border-default overflow-hidden">
         <div className="px-4 py-3 border-b border-border-default">
@@ -152,6 +169,21 @@ export default async function AdminOrderDetailPage({ params }: Props) {
                   Processed {order.refund.processedAt.toLocaleString()}
                 </p>
               )}
+              {order.refund.status === "PENDING" && order.payment.provider === "COD" && (
+                <form className="pt-1">
+                  <input type="hidden" name="refundId" value={order.refund.id} />
+                  <button
+                    type="submit"
+                    formAction={async (fd: FormData) => {
+                      "use server"
+                      await markRefundSettled(fd.get("refundId") as string)
+                    }}
+                    className="text-xs px-2 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded cursor-pointer"
+                  >
+                    Mark Refund as Settled
+                  </button>
+                </form>
+              )}
             </div>
           )}
 
@@ -194,6 +226,8 @@ export default async function AdminOrderDetailPage({ params }: Props) {
           <p className="text-xs text-text-secondary">{order.shipment.status}</p>
         </div>
       )}
+
+      <OrderTimeline events={order.timelineEvents} />
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
 import { reconcileEligibleCommissions } from "@/lib/payouts/reconcile"
+import { escalateExpiredReturnRequests } from "@/lib/orders/timeline"
 import type { DashboardStats } from "@/types/seller"
 import type { ShopReviewWithProduct } from "@/types"
 import type { SellerBalance, SellerPayoutRow } from "@/types/payouts"
@@ -9,6 +10,15 @@ export async function getCurrentShop() {
   const user = await getCurrentUser()
   if (!user) return null
   return prisma.shop.findUnique({ where: { ownerId: user.id } })
+}
+
+export async function getShopShippingMethods(shopId: string) {
+  const [methods, links] = await Promise.all([
+    prisma.shippingMethod.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
+    prisma.shopShippingMethod.findMany({ where: { shopId } }),
+  ])
+  const linkByMethod = new Map(links.map((l) => [l.methodId, l.isEnabled]))
+  return methods.map((m) => ({ ...m, isEnabled: linkByMethod.get(m.id) ?? false }))
 }
 
 export async function getDashboardStats(shopId: string): Promise<DashboardStats> {
@@ -126,6 +136,8 @@ export async function getSellerOrders(
 }
 
 export async function getSellerOrderDetail(orderId: string, shopId: string) {
+  await escalateExpiredReturnRequests()
+
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
@@ -138,6 +150,10 @@ export async function getSellerOrderDetail(orderId: string, shopId: string) {
         },
       },
       shipment: true,
+      payment: true,
+      refund: true,
+      returnRequest: true,
+      timelineEvents: { orderBy: { createdAt: "asc" } },
     },
   })
   if (!order || order.shopId !== shopId) return null

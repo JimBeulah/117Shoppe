@@ -51,6 +51,7 @@ export async function getOrderById(orderId: string): Promise<OrderConfirmation |
     status: order.status,
     total: order.total,
     shippingFee: order.shippingFee,
+    shippingMethodName: order.shippingMethodName,
     discountAmount: order.discountAmount,
     paymentMethod: order.paymentMethod,
     createdAt: order.createdAt,

@@ -1,6 +1,6 @@
 "use client"
 
-import { useOptimistic, useTransition } from "react"
+import { useOptimistic, useState, useTransition } from "react"
 import Image from "next/image"
 import { Trash2 } from "lucide-react"
 import { formatPrice } from "@/lib/utils"
@@ -11,9 +11,12 @@ interface CartItemRowProps {
   item: CartItemWithProduct
 }
 
+const LOW_STOCK_THRESHOLD = 5
+
 export function CartItemRow({ item }: CartItemRowProps) {
   const [optimisticQty, setOptimisticQty] = useOptimistic(item.quantity)
   const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState("")
 
   const unitPrice = item.variant?.price ?? item.product.price
   const maxStock = item.variant?.stock ?? item.product.stock
@@ -21,7 +24,8 @@ export function CartItemRow({ item }: CartItemRowProps) {
   function handleQtyChange(newQty: number) {
     startTransition(async () => {
       setOptimisticQty(newQty <= 0 ? 0 : newQty)
-      await updateCartItemQuantity(item.id, newQty)
+      const result = await updateCartItemQuantity(item.id, newQty)
+      setError(result.error ?? "")
     })
   }
 
@@ -73,24 +77,40 @@ export function CartItemRow({ item }: CartItemRowProps) {
           <Trash2 className="w-4 h-4" />
         </button>
 
-        <div className="flex items-center border border-border rounded">
-          <button
-            onClick={() => handleQtyChange(optimisticQty - 1)}
-            disabled={isPending}
-            className="w-7 h-7 flex items-center justify-center text-text-primary hover:bg-brand-50 transition-colors disabled:opacity-50 text-sm"
-            aria-label="Decrease"
-          >
-            −
-          </button>
-          <span className="w-8 text-center text-xs font-medium">{optimisticQty}</span>
-          <button
-            onClick={() => handleQtyChange(optimisticQty + 1)}
-            disabled={isPending || optimisticQty >= maxStock}
-            className="w-7 h-7 flex items-center justify-center text-text-primary hover:bg-brand-50 transition-colors disabled:opacity-50 text-sm"
-            aria-label="Increase"
-          >
-            +
-          </button>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center border border-border rounded">
+            <button
+              onClick={() => handleQtyChange(optimisticQty - 1)}
+              disabled={isPending}
+              className="w-7 h-7 flex items-center justify-center text-text-primary hover:bg-brand-50 transition-colors disabled:opacity-50 text-sm"
+              aria-label="Decrease"
+            >
+              −
+            </button>
+            <span className="w-8 text-center text-xs font-medium">{optimisticQty}</span>
+            <button
+              onClick={() => handleQtyChange(optimisticQty + 1)}
+              disabled={isPending || optimisticQty >= maxStock}
+              className="w-7 h-7 flex items-center justify-center text-text-primary hover:bg-brand-50 transition-colors disabled:opacity-50 text-sm"
+              aria-label="Increase"
+            >
+              +
+            </button>
+          </div>
+
+          {maxStock <= 0 ? (
+            <p className="text-xs text-accent-sale font-medium">Out of stock</p>
+          ) : maxStock <= LOW_STOCK_THRESHOLD ? (
+            <p className="text-xs text-accent-sale font-medium">Only {maxStock} left</p>
+          ) : (
+            <p className="text-xs text-text-secondary">{maxStock} in stock</p>
+          )}
+
+          {error && (
+            <p className="text-xs text-accent-sale font-medium" role="alert">
+              {error}
+            </p>
+          )}
         </div>
 
         <p className="text-xs font-semibold text-text-primary">

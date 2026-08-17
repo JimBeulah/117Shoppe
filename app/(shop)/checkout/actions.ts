@@ -9,8 +9,28 @@ import { splitProportionally } from "@/lib/voucher"
 import { createNotification } from "@/lib/notifications/create"
 import { buildNewOrderCopy } from "@/lib/notifications/copy"
 import { createPaymongoLink } from "@/lib/payments/paymongo"
+import { getShippingOptionsForShops, type ShippingRateOption } from "@/lib/shipping/rates"
+import { logOrderEvent } from "@/lib/orders/timeline"
 
-const SHIPPING_FEE = 49
+export async function getShippingOptionsForAddress(
+  addressId: string
+): Promise<{ options?: Record<string, ShippingRateOption[]>; error?: string }> {
+  const user = await getCurrentUser()
+  if (!user) return { error: "Unauthorized" }
+
+  const address = await prisma.address.findUnique({ where: { id: addressId } })
+  if (!address || address.userId !== user.id) return { error: "Invalid address" }
+
+  const cart = await prisma.cart.findUnique({
+    where: { userId: user.id },
+    include: { items: { include: { product: { include: { shop: true } } } } },
+  })
+  if (!cart || cart.items.length === 0) return { error: "Cart is empty" }
+
+  const shopIds = Array.from(new Set(cart.items.map((i) => i.product.shop.id)))
+  const options = await getShippingOptionsForShops(shopIds, address.province)
+  return { options }
+}
 
 export async function applyVoucher(code: string): Promise<VoucherValidationResult> {
   const user = await getCurrentUser()
@@ -39,6 +59,7 @@ export async function applyVoucher(code: string): Promise<VoucherValidationResul
 export async function placeOrder(
   addressId: string,
   paymentMethod: "COD" | "PAYMONGO",
+  shippingSelections: Record<string, string>,
   voucherCode?: string
 ): Promise<{ orderIds?: string[]; checkoutUrl?: string; error?: string }> {
   const user = await getCurrentUser()
@@ -102,67 +123,108 @@ export async function placeOrder(
     shopDiscounts = splitProportionally(result.discountAmount, itemsTotals)
   }
 
+  const shopIds = groupEntries.map(([shopId]) => shopId)
+  const shippingOptionsByShop = await getShippingOptionsForShops(shopIds, address.province)
+
+  const resolvedShipping: { methodId: string; name: string; carrier: string; price: number }[] = []
+  for (const shopId of shopIds) {
+    const selectedMethodId = shippingSelections[shopId]
+    if (!selectedMethodId) return { error: "Please select a shipping method for every shop." }
+    const options = shippingOptionsByShop[shopId] ?? []
+    const option = options.find((o) => o.methodId === selectedMethodId)
+    if (!option) {
+      return { error: "One of your selected shipping methods is no longer available. Please re-select." }
+    }
+    resolvedShipping.push({ methodId: option.methodId, name: option.name, carrier: option.carrier, price: option.price })
+  }
+
   const orderIds: string[] = []
 
   for (let i = 0; i < groupEntries.length; i++) {
     const [shopId, items] = groupEntries[i]
     const itemsTotal = itemsTotals[i]
     const discountAmount = shopDiscounts[i]
-    const orderTotal = itemsTotal - discountAmount + SHIPPING_FEE
+    const shipping = resolvedShipping[i]
+    const orderTotal = itemsTotal - discountAmount + shipping.price
 
-    const order = await prisma.$transaction(async (tx) => {
-      const newOrder = await tx.order.create({
-        data: {
-          userId: user.id,
-          shopId,
-          addressId,
-          paymentMethod,
-          total: orderTotal,
-          shippingFee: SHIPPING_FEE,
-          discountAmount,
-          voucherId,
-          status: paymentMethod === "COD" ? "PAID" : "PENDING",
-          items: {
-            create: items.map((item) => ({
-              productId: item.productId,
-              variantId: item.variantId ?? null,
-              quantity: item.quantity,
-              price: effectivePrice(item.product, item.variant),
-            })),
-          },
-        },
-      })
+    let order
+    try {
+      order = await prisma.$transaction(async (tx) => {
+        // Decrement stock atomically first, aborting if concurrent orders left too little
+        for (const item of items) {
+          if (item.variantId) {
+            const result = await tx.productVariant.updateMany({
+              where: { id: item.variantId, stock: { gte: item.quantity } },
+              data: { stock: { decrement: item.quantity } },
+            })
+            if (result.count === 0) {
+              throw new Error(`"${item.product.name}" no longer has enough stock.`)
+            }
+          } else {
+            const result = await tx.product.updateMany({
+              where: { id: item.productId, stock: { gte: item.quantity } },
+              data: { stock: { decrement: item.quantity }, sold: { increment: item.quantity } },
+            })
+            if (result.count === 0) {
+              throw new Error(`"${item.product.name}" no longer has enough stock.`)
+            }
+          }
+        }
 
-      await tx.payment.create({
-        data: {
-          orderId: newOrder.id,
-          method: paymentMethod,
-          provider: paymentMethod,
-          status: "PENDING",
-          amount: orderTotal,
-        },
-      })
-
-      // Decrement stock
-      for (const item of items) {
-        if (item.variantId) {
-          await tx.productVariant.update({
-            where: { id: item.variantId },
-            data: { stock: { decrement: item.quantity } },
-          })
-        } else {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: {
-              stock: { decrement: item.quantity },
-              sold: { increment: item.quantity },
+        const newOrder = await tx.order.create({
+          data: {
+            userId: user.id,
+            shopId,
+            addressId,
+            paymentMethod,
+            total: orderTotal,
+            shippingFee: shipping.price,
+            shippingMethodId: shipping.methodId,
+            shippingMethodName: `${shipping.name} (${shipping.carrier})`,
+            discountAmount,
+            voucherId,
+            status: paymentMethod === "COD" ? "PAID" : "PENDING",
+            items: {
+              create: items.map((item) => ({
+                productId: item.productId,
+                variantId: item.variantId ?? null,
+                quantity: item.quantity,
+                price: effectivePrice(item.product, item.variant),
+              })),
             },
+          },
+        })
+
+        await tx.payment.create({
+          data: {
+            orderId: newOrder.id,
+            method: paymentMethod,
+            provider: paymentMethod,
+            status: "PENDING",
+            amount: orderTotal,
+          },
+        })
+
+        await logOrderEvent(tx, {
+          orderId: newOrder.id,
+          type: "ORDER_PLACED",
+          message: "Order placed.",
+          actorId: user.id,
+          actorRole: "BUYER",
+        })
+        if (paymentMethod === "COD") {
+          await logOrderEvent(tx, {
+            orderId: newOrder.id,
+            type: "PAYMENT_RECEIVED",
+            message: "Cash on Delivery selected — payment due upon delivery.",
           })
         }
-      }
 
-      return newOrder
-    })
+        return newOrder
+      })
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : "Failed to place order." }
+    }
 
     orderIds.push(order.id)
 
@@ -177,8 +239,9 @@ export async function placeOrder(
   revalidatePath("/", "layout")
 
   if (paymentMethod === "PAYMONGO") {
+    const shippingTotal = resolvedShipping.reduce((sum, s) => sum + s.price, 0)
     const grandTotal = itemsTotals.reduce((sum, itemsTotal, i) => sum + itemsTotal - shopDiscounts[i], 0) +
-      SHIPPING_FEE * groupEntries.length
+      shippingTotal
 
     try {
       const link = await createPaymongoLink(grandTotal, `117Shoppe order ${orderIds.join(", ")}`)

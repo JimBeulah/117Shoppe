@@ -134,6 +134,7 @@ export interface OrderConfirmation {
   status: string
   total: number
   shippingFee: number
+  shippingMethodName: string | null
   discountAmount: number
   paymentMethod: string | null
   createdAt: Date

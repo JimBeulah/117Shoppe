@@ -119,3 +119,75 @@ export function buildNewMessageCopy(senderName: string) {
     link: "/chat",
   }
 }
+
+export function buildReturnRequestedCopy(orderId: string, buyerName: string) {
+  return {
+    type: NotificationType.RETURN_STATUS,
+    title: "New return/refund request",
+    message: `${buyerName} requested a return/refund for order ${shortId(orderId)}.`,
+    link: `/seller/orders/${orderId}`,
+  }
+}
+
+export function buildReturnSellerApprovedCopy(orderId: string) {
+  return {
+    type: NotificationType.RETURN_STATUS,
+    title: "Return/refund approved",
+    message: `Your return/refund request for order ${shortId(orderId)} was approved by the seller.`,
+    link: `/account/orders/${orderId}`,
+  }
+}
+
+export function buildReturnSellerRejectedCopy(orderId: string) {
+  return {
+    type: NotificationType.RETURN_STATUS,
+    title: "Return/refund declined by seller",
+    message: `The seller declined your return/refund request for order ${shortId(orderId)}. It's been forwarded to platform support for review.`,
+    link: `/account/orders/${orderId}`,
+  }
+}
+
+export function buildReturnEscalatedCopy(orderId: string) {
+  return {
+    type: NotificationType.RETURN_STATUS,
+    title: "Return/refund under platform review",
+    message: `Your return/refund request for order ${shortId(orderId)} is now being reviewed by platform support.`,
+    link: `/account/orders/${orderId}`,
+  }
+}
+
+export function buildReturnAdminApprovedCopy(orderId: string) {
+  return {
+    type: NotificationType.RETURN_STATUS,
+    title: "Return/refund approved",
+    message: `Your return/refund request for order ${shortId(orderId)} was approved.`,
+    link: `/account/orders/${orderId}`,
+  }
+}
+
+export function buildReturnAdminRejectedCopy(orderId: string) {
+  return {
+    type: NotificationType.RETURN_STATUS,
+    title: "Return/refund request denied",
+    message: `Your return/refund request for order ${shortId(orderId)} was denied after platform review.`,
+    link: `/account/orders/${orderId}`,
+  }
+}
+
+export function buildReturnCancelledCopy(orderId: string, buyerName: string) {
+  return {
+    type: NotificationType.RETURN_STATUS,
+    title: "Return/refund request withdrawn",
+    message: `${buyerName} withdrew their return/refund request for order ${shortId(orderId)}.`,
+    link: `/seller/orders/${orderId}`,
+  }
+}
+
+export function buildReturnRefundCompletedCopy(orderId: string) {
+  return {
+    type: NotificationType.RETURN_STATUS,
+    title: "Refund issued",
+    message: `A refund has been issued for order ${shortId(orderId)}.`,
+    link: `/account/orders/${orderId}`,
+  }
+}

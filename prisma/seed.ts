@@ -3,6 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { createHash } from 'crypto'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
+import { fetchProvinces } from '../lib/psgc'
 
 // Load .env.local since tsx doesn't load Next.js env automatically
 function loadEnvLocal() {
@@ -217,6 +218,66 @@ async function main() {
 
   for (const v of vouchers) {
     await prisma.voucher.upsert({ where: { code: v.code }, update: {}, create: v })
+  }
+
+  // ── Shipping ──────────────────────────────────────────────────────────────
+  const standardMethod = await prisma.shippingMethod.upsert({
+    where: { id: 'seed-shipping-standard' },
+    update: {},
+    create: { id: 'seed-shipping-standard', name: 'Standard', carrier: 'LBC', description: 'Standard delivery' },
+  })
+  const expressMethod = await prisma.shippingMethod.upsert({
+    where: { id: 'seed-shipping-express' },
+    update: {},
+    create: { id: 'seed-shipping-express', name: 'Express', carrier: 'J&T Express', description: 'Faster delivery' },
+  })
+
+  const metroManilaZone = await prisma.shippingZone.upsert({
+    where: { name: 'Metro Manila' },
+    update: {},
+    create: { name: 'Metro Manila', provinces: ['Metro Manila (NCR)'] },
+  })
+  const FALLBACK_PROVINCES = [
+    'Cavite', 'Laguna', 'Batangas', 'Rizal', 'Bulacan', 'Pampanga', 'Cebu',
+    'Davao del Sur', 'Iloilo', 'Negros Occidental', 'Bohol', 'Pangasinan',
+  ]
+  let provincialNames: string[]
+  try {
+    provincialNames = (await fetchProvinces()).map((p) => p.name).filter((name) => name !== 'Metro Manila (NCR)')
+  } catch {
+    provincialNames = FALLBACK_PROVINCES
+  }
+  const provincialZone = await prisma.shippingZone.upsert({
+    where: { name: 'Provincial' },
+    update: {},
+    create: { name: 'Provincial', provinces: provincialNames },
+  })
+
+  const rateDefs = [
+    { methodId: standardMethod.id, zoneId: metroManilaZone.id, price: 49, estimatedDaysMin: 2, estimatedDaysMax: 4 },
+    { methodId: standardMethod.id, zoneId: provincialZone.id, price: 89, estimatedDaysMin: 4, estimatedDaysMax: 7 },
+    { methodId: expressMethod.id, zoneId: metroManilaZone.id, price: 99, estimatedDaysMin: 1, estimatedDaysMax: 2 },
+    { methodId: expressMethod.id, zoneId: provincialZone.id, price: 149, estimatedDaysMin: 2, estimatedDaysMax: 4 },
+  ]
+  for (const rate of rateDefs) {
+    await prisma.shippingRate.upsert({
+      where: { methodId_zoneId: { methodId: rate.methodId, zoneId: rate.zoneId } },
+      update: {},
+      create: rate,
+    })
+  }
+
+  for (const shop of shops) {
+    await prisma.shopShippingMethod.upsert({
+      where: { shopId_methodId: { shopId: shop.id, methodId: standardMethod.id } },
+      update: {},
+      create: { shopId: shop.id, methodId: standardMethod.id, isEnabled: true },
+    })
+    await prisma.shopShippingMethod.upsert({
+      where: { shopId_methodId: { shopId: shop.id, methodId: expressMethod.id } },
+      update: {},
+      create: { shopId: shop.id, methodId: expressMethod.id, isEnabled: true },
+    })
   }
 
   console.log('✅ Seeding complete.')

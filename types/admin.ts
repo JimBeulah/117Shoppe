@@ -105,6 +105,30 @@ export interface AdminBannerRow {
   createdAt: Date
 }
 
+export interface AdminShippingMethodRow {
+  id: string
+  name: string
+  carrier: string
+  description: string | null
+  isActive: boolean
+  createdAt: Date
+}
+
+export interface AdminShippingZoneRow {
+  id: string
+  name: string
+  provinces: string[]
+}
+
+export interface AdminShippingRateRow {
+  id: string
+  methodId: string
+  zoneId: string
+  price: number
+  estimatedDaysMin: number
+  estimatedDaysMax: number
+}
+
 export interface AdminVoucherRow {
   id: string
   code: string

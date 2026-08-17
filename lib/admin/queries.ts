@@ -8,6 +8,9 @@ import type {
   AdminFlashSaleRow,
   AdminOrderRow,
   AdminProductRow,
+  AdminShippingMethodRow,
+  AdminShippingRateRow,
+  AdminShippingZoneRow,
   AdminShopRow,
   AdminUserRow,
   AdminVoucherRow,
@@ -305,6 +308,31 @@ export async function getAdminBanners(): Promise<AdminBannerRow[]> {
   })
 }
 
+// ─── Shipping ─────────────────────────────────────────────────────────────────
+
+export async function getAdminShippingMethods(): Promise<AdminShippingMethodRow[]> {
+  await assertAdmin()
+  return prisma.shippingMethod.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, carrier: true, description: true, isActive: true, createdAt: true },
+  })
+}
+
+export async function getAdminShippingZones(): Promise<AdminShippingZoneRow[]> {
+  await assertAdmin()
+  return prisma.shippingZone.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, provinces: true },
+  })
+}
+
+export async function getAdminShippingRates(): Promise<AdminShippingRateRow[]> {
+  await assertAdmin()
+  return prisma.shippingRate.findMany({
+    select: { id: true, methodId: true, zoneId: true, price: true, estimatedDaysMin: true, estimatedDaysMax: true },
+  })
+}
+
 export async function getAdminVouchers(
   page: number,
   search?: string | null
@@ -386,6 +414,8 @@ export async function getAdminOrderDetail(orderId: string) {
       payment: true,
       shipment: true,
       refund: true,
+      returnRequest: true,
+      timelineEvents: { orderBy: { createdAt: "asc" } },
     },
   })
 }

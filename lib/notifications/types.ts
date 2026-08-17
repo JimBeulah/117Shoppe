@@ -5,6 +5,7 @@ export const NotificationType = {
   NEW_MESSAGE: "NEW_MESSAGE",
   SHOP_VACATION: "SHOP_VACATION",
   SHOP_STAFF_ADDED: "SHOP_STAFF_ADDED",
+  RETURN_STATUS: "RETURN_STATUS",
 } as const
 
 export type NotificationTypeValue = (typeof NotificationType)[keyof typeof NotificationType]

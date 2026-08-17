@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/data/user"
 import { createNotification } from "@/lib/notifications/create"
 import { buildOrderStatusCopy } from "@/lib/notifications/copy"
 import { writeAuditLog } from "@/lib/admin/audit"
+import { logOrderEvent } from "@/lib/orders/timeline"
 
 export async function assertAdmin() {
   const user = await getCurrentUser()
@@ -447,6 +448,120 @@ export async function deleteFlashSale(id: string): Promise<{ error?: string }> {
   return {}
 }
 
+// ─── Shipping ─────────────────────────────────────────────────────────────────
+
+export async function createShippingMethod(
+  name: string,
+  carrier: string,
+  description: string | null
+): Promise<{ error?: string }> {
+  const admin = await assertAdmin()
+  if (!name.trim()) return { error: "Name is required" }
+  if (!carrier.trim()) return { error: "Carrier is required" }
+  const method = await prisma.shippingMethod.create({ data: { name, carrier, description } })
+  await writeAuditLog(admin.id, "shippingMethod.create", "ShippingMethod", method.id, { name, carrier })
+  revalidatePath("/admin/shipping")
+  return {}
+}
+
+export async function updateShippingMethod(
+  id: string,
+  name: string,
+  carrier: string,
+  description: string | null,
+  isActive: boolean
+): Promise<{ error?: string }> {
+  const admin = await assertAdmin()
+  if (!name.trim()) return { error: "Name is required" }
+  if (!carrier.trim()) return { error: "Carrier is required" }
+  await prisma.shippingMethod.update({ where: { id }, data: { name, carrier, description, isActive } })
+  await writeAuditLog(admin.id, "shippingMethod.update", "ShippingMethod", id, { name, carrier })
+  revalidatePath("/admin/shipping")
+  return {}
+}
+
+export async function deleteShippingMethod(id: string): Promise<{ error?: string }> {
+  const admin = await assertAdmin()
+  const orderCount = await prisma.order.count({ where: { shippingMethodId: id } })
+  if (orderCount > 0) return { error: `Cannot delete: ${orderCount} order(s) used this method` }
+  await prisma.$transaction([
+    prisma.shippingRate.deleteMany({ where: { methodId: id } }),
+    prisma.shopShippingMethod.deleteMany({ where: { methodId: id } }),
+    prisma.shippingMethod.delete({ where: { id } }),
+  ])
+  await writeAuditLog(admin.id, "shippingMethod.delete", "ShippingMethod", id)
+  revalidatePath("/admin/shipping")
+  return {}
+}
+
+export async function createShippingZone(name: string, provinces: string[]): Promise<{ error?: string }> {
+  const admin = await assertAdmin()
+  if (!name.trim()) return { error: "Name is required" }
+  if (provinces.length === 0) return { error: "Select at least one province" }
+  let zone: { id: string }
+  try {
+    zone = await prisma.shippingZone.create({ data: { name, provinces } })
+  } catch (e: unknown) {
+    if ((e as { code?: string })?.code === "P2002") return { error: "Zone name already in use" }
+    return { error: "Failed to create zone" }
+  }
+  await writeAuditLog(admin.id, "shippingZone.create", "ShippingZone", zone.id, { name })
+  revalidatePath("/admin/shipping")
+  return {}
+}
+
+export async function updateShippingZone(
+  id: string,
+  name: string,
+  provinces: string[]
+): Promise<{ error?: string }> {
+  const admin = await assertAdmin()
+  if (!name.trim()) return { error: "Name is required" }
+  if (provinces.length === 0) return { error: "Select at least one province" }
+  try {
+    await prisma.shippingZone.update({ where: { id }, data: { name, provinces } })
+  } catch (e: unknown) {
+    if ((e as { code?: string })?.code === "P2002") return { error: "Zone name already in use" }
+    return { error: "Failed to update zone" }
+  }
+  await writeAuditLog(admin.id, "shippingZone.update", "ShippingZone", id, { name })
+  revalidatePath("/admin/shipping")
+  return {}
+}
+
+export async function deleteShippingZone(id: string): Promise<{ error?: string }> {
+  const admin = await assertAdmin()
+  await prisma.$transaction([
+    prisma.shippingRate.deleteMany({ where: { zoneId: id } }),
+    prisma.shippingZone.delete({ where: { id } }),
+  ])
+  await writeAuditLog(admin.id, "shippingZone.delete", "ShippingZone", id)
+  revalidatePath("/admin/shipping")
+  return {}
+}
+
+export async function upsertShippingRate(
+  methodId: string,
+  zoneId: string,
+  price: number,
+  estimatedDaysMin: number,
+  estimatedDaysMax: number
+): Promise<{ error?: string }> {
+  const admin = await assertAdmin()
+  if (!Number.isFinite(price) || price < 0) return { error: "Price must be a positive number" }
+  if (!Number.isFinite(estimatedDaysMin) || !Number.isFinite(estimatedDaysMax) || estimatedDaysMin < 1 || estimatedDaysMax < estimatedDaysMin) {
+    return { error: "Estimated delivery days are invalid" }
+  }
+  await prisma.shippingRate.upsert({
+    where: { methodId_zoneId: { methodId, zoneId } },
+    create: { methodId, zoneId, price, estimatedDaysMin, estimatedDaysMax },
+    update: { price, estimatedDaysMin, estimatedDaysMax },
+  })
+  await writeAuditLog(admin.id, "shippingRate.upsert", "ShippingRate", `${methodId}:${zoneId}`, { price })
+  revalidatePath("/admin/shipping")
+  return {}
+}
+
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
 const VALID_ORDER_STATUSES = ["PENDING", "PAID", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"] as const
@@ -456,16 +571,28 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
   const admin = await assertAdmin()
   if (!VALID_ORDER_STATUSES.includes(status)) return { error: "Invalid status" }
 
-  const updates: any[] = [prisma.order.update({ where: { id: orderId }, data: { status } })]
-  if (status === "CANCELLED" || status === "REFUNDED") {
-    updates.push(
-      prisma.commissionEntry.updateMany({
+  const existing = await prisma.order.findUnique({ where: { id: orderId }, select: { status: true } })
+  if (!existing) return { error: "Order not found" }
+  const fromStatus = existing.status
+
+  const order = await prisma.$transaction(async (tx) => {
+    const updated = await tx.order.update({ where: { id: orderId }, data: { status } })
+    if (status === "CANCELLED" || status === "REFUNDED") {
+      await tx.commissionEntry.updateMany({
         where: { orderId, status: { in: ["PENDING", "AVAILABLE"] } },
         data: { status: "REVERSED" },
       })
-    )
-  }
-  const [order] = await prisma.$transaction(updates)
+    }
+    await logOrderEvent(tx, {
+      orderId,
+      type: "ORDER_STATUS_CHANGED_BY_ADMIN",
+      message: `Order status changed from ${fromStatus} to ${status} by admin.`,
+      actorId: admin.id,
+      actorRole: "ADMIN",
+      metadata: { from: fromStatus, to: status },
+    })
+    return updated
+  })
 
   const copy = buildOrderStatusCopy(orderId, status)
   if (copy) await createNotification({ userId: order.userId, ...copy })

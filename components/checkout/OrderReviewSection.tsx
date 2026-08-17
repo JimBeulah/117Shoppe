@@ -1,16 +1,27 @@
 import Image from "next/image"
 import { formatPrice } from "@/lib/utils"
 import { splitProportionally } from "@/lib/voucher"
+import { ShippingMethodSelector } from "@/components/checkout/ShippingMethodSelector"
 import type { CartGroup } from "@/types"
-
-const SHIPPING_FEE = 49
+import type { ShippingRateOption } from "@/lib/shipping/rates"
 
 interface OrderReviewSectionProps {
   groups: CartGroup[]
   discountAmount?: number
+  shippingOptions: Record<string, ShippingRateOption[]>
+  shippingLoading: boolean
+  selectedMethods: Record<string, string>
+  onSelectMethod: (shopId: string, methodId: string) => void
 }
 
-export function OrderReviewSection({ groups, discountAmount = 0 }: OrderReviewSectionProps) {
+export function OrderReviewSection({
+  groups,
+  discountAmount = 0,
+  shippingOptions,
+  shippingLoading,
+  selectedMethods,
+  onSelectMethod,
+}: OrderReviewSectionProps) {
   const subtotals = groups.map((group) =>
     group.items.reduce((sum, item) => {
       const price = item.variant?.price ?? item.product.price
@@ -24,6 +35,10 @@ export function OrderReviewSection({ groups, discountAmount = 0 }: OrderReviewSe
       {groups.map((group, groupIndex) => {
         const subtotal = subtotals[groupIndex]
         const groupDiscount = groupDiscounts[groupIndex]
+        const options = shippingOptions[group.shopId] ?? []
+        const selectedMethodId = selectedMethods[group.shopId] ?? null
+        const selectedOption = options.find((o) => o.methodId === selectedMethodId)
+        const shippingFee = selectedOption?.price ?? 0
 
         return (
           <div key={group.shopId} className="bg-white rounded-lg border border-border overflow-hidden">
@@ -60,11 +75,14 @@ export function OrderReviewSection({ groups, discountAmount = 0 }: OrderReviewSe
                 )
               })}
             </div>
-            <div className="px-4 py-3 border-t border-border bg-bg-subtle space-y-1">
-              <div className="flex justify-between text-xs text-text-secondary">
-                <span>Shipping</span>
-                <span>{formatPrice(SHIPPING_FEE)}</span>
-              </div>
+            <div className="px-4 py-3 border-t border-border bg-bg-subtle space-y-3">
+              <ShippingMethodSelector
+                shopId={group.shopId}
+                options={options}
+                loading={shippingLoading}
+                value={selectedMethodId}
+                onChange={onSelectMethod}
+              />
               {groupDiscount > 0 && (
                 <div className="flex justify-between text-xs text-text-secondary">
                   <span>Voucher discount</span>
@@ -74,7 +92,7 @@ export function OrderReviewSection({ groups, discountAmount = 0 }: OrderReviewSe
               <div className="flex justify-between text-sm font-semibold text-text-primary">
                 <span>Shop subtotal</span>
                 <span className="text-accent-sale">
-                  {formatPrice(subtotal + SHIPPING_FEE - groupDiscount)}
+                  {formatPrice(subtotal + shippingFee - groupDiscount)}
                 </span>
               </div>
             </div>

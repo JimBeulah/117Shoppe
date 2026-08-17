@@ -3,6 +3,10 @@ import Link from "next/link"
 import { getCurrentUser } from "@/lib/data/user"
 import { getBuyerOrderDetail } from "@/lib/data/orders"
 import { OrderActions } from "@/components/account/OrderActions"
+import { ReturnRequestForm } from "@/components/account/ReturnRequestForm"
+import { ReturnRequestStatus } from "@/components/account/ReturnRequestStatus"
+import { OrderTimeline } from "@/components/orders/OrderTimeline"
+import { canRequestReturn } from "@/lib/orders/eligibility"
 import { formatPrice } from "@/lib/utils"
 
 interface Props {
@@ -28,6 +32,14 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 const TRACKING_STEPS = ["PAID", "SHIPPED", "DELIVERED"] as const
+
+const DELIVERY_STATUS_LABEL: Record<string, string> = {
+  PACKED: "Packed",
+  SHIPPED: "Shipped",
+  OUT_FOR_DELIVERY: "Out for Delivery",
+  DELIVERED: "Delivered",
+  FAILED: "Delivery Failed",
+}
 
 export const metadata = { title: "Order Details | 11/7 Shoppe" }
 
@@ -55,11 +67,21 @@ export default async function OrderDetailPage({ params }: Props) {
           </h1>
           <p className="text-sm text-text-secondary">{order.shop.name}</p>
         </div>
-        <span
-          className={`text-sm px-3 py-1 rounded-full font-medium ${STATUS_COLOR[order.status] ?? "bg-gray-100 text-gray-600"}`}
-        >
-          {STATUS_LABELS[order.status] ?? order.status}
-        </span>
+        <div className="flex flex-col items-end gap-2">
+          <span
+            className={`text-sm px-3 py-1 rounded-full font-medium ${STATUS_COLOR[order.status] ?? "bg-gray-100 text-gray-600"}`}
+          >
+            {STATUS_LABELS[order.status] ?? order.status}
+          </span>
+          {order.status !== "PENDING" && order.status !== "CANCELLED" && (
+            <Link
+              href={`/account/orders/${order.id}/invoice`}
+              className="text-xs text-text-secondary hover:underline"
+            >
+              View Invoice
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Tracking */}
@@ -94,20 +116,38 @@ export default async function OrderDetailPage({ params }: Props) {
             ))}
           </div>
 
-          {order.shipment && (order.shipment.courier || order.shipment.trackingNumber) && (
+          {(order.shipment || order.shippingMethodName) && (
             <dl className="grid grid-cols-2 gap-3 text-sm pt-2 border-t border-border-default">
-              <div>
-                <dt className="text-xs text-text-secondary uppercase tracking-wide">Courier</dt>
-                <dd className="text-text-primary font-medium">{order.shipment.courier ?? "—"}</dd>
-              </div>
-              <div>
-                <dt className="text-xs text-text-secondary uppercase tracking-wide">
-                  Tracking Number
-                </dt>
-                <dd className="text-text-primary font-medium font-mono">
-                  {order.shipment.trackingNumber ?? "—"}
-                </dd>
-              </div>
+              {order.shippingMethodName && (
+                <div>
+                  <dt className="text-xs text-text-secondary uppercase tracking-wide">Shipping Method</dt>
+                  <dd className="text-text-primary font-medium">{order.shippingMethodName}</dd>
+                </div>
+              )}
+              {order.shipment && (order.shipment.courier || order.shipment.trackingNumber) && (
+                <>
+                  <div>
+                    <dt className="text-xs text-text-secondary uppercase tracking-wide">Courier</dt>
+                    <dd className="text-text-primary font-medium">{order.shipment.courier ?? "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-text-secondary uppercase tracking-wide">
+                      Tracking Number
+                    </dt>
+                    <dd className="text-text-primary font-medium font-mono">
+                      {order.shipment.trackingNumber ?? "—"}
+                    </dd>
+                  </div>
+                </>
+              )}
+              {order.shipment && (
+                <div>
+                  <dt className="text-xs text-text-secondary uppercase tracking-wide">Delivery Status</dt>
+                  <dd className="text-text-primary font-medium">
+                    {DELIVERY_STATUS_LABEL[order.shipment.status] ?? order.shipment.status}
+                  </dd>
+                </div>
+              )}
             </dl>
           )}
         </section>
@@ -182,7 +222,24 @@ export default async function OrderDetailPage({ params }: Props) {
         </div>
       </section>
 
+      {order.returnRequest ? (
+        <ReturnRequestStatus
+          orderId={order.id}
+          status={order.returnRequest.status}
+          sellerDecisionNote={order.returnRequest.sellerDecisionNote}
+          adminDecisionNote={order.returnRequest.adminDecisionNote}
+        />
+      ) : (
+        canRequestReturn(order) && (
+          <div className="flex justify-end">
+            <ReturnRequestForm orderId={order.id} />
+          </div>
+        )
+      )}
+
       <OrderActions orderId={order.id} status={order.status} />
+
+      <OrderTimeline events={order.timelineEvents} />
     </div>
   )
 }

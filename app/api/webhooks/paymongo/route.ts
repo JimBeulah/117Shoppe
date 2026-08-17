@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db"
 import { createNotification } from "@/lib/notifications/create"
 import { buildOrderStatusCopy } from "@/lib/notifications/copy"
 import { verifyPaymongoSignature } from "@/lib/payments/verifyPaymongoSignature"
+import { logOrderEvent } from "@/lib/orders/timeline"
 
 export async function POST(req: Request) {
   const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET
@@ -46,8 +47,8 @@ export async function POST(req: Request) {
       for (const payment of siblings) {
         if (payment.status === "PAID") continue
 
-        await prisma.$transaction([
-          prisma.payment.update({
+        await prisma.$transaction(async (tx) => {
+          await tx.payment.update({
             where: { id: payment.id },
             data: {
               status: "PAID",
@@ -55,9 +56,14 @@ export async function POST(req: Request) {
               externalPaymentId: paymentId,
               metadata: event as object,
             },
-          }),
-          prisma.order.update({ where: { id: payment.orderId }, data: { status: "PAID" } }),
-        ])
+          })
+          await tx.order.update({ where: { id: payment.orderId }, data: { status: "PAID" } })
+          await logOrderEvent(tx, {
+            orderId: payment.orderId,
+            type: "PAYMENT_RECEIVED",
+            message: "Payment confirmed.",
+          })
+        })
 
         const order = await prisma.order.findUnique({
           where: { id: payment.orderId },

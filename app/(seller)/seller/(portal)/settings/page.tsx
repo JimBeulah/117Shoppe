@@ -1,14 +1,16 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { getCurrentShop } from "@/lib/seller/queries"
+import { getCurrentShop, getShopShippingMethods } from "@/lib/seller/queries"
 import ShopSettingsForm from "@/components/seller/ShopSettingsForm"
 import VacationModeToggle from "@/components/seller/VacationModeToggle"
+import ShippingMethodsPanel from "@/components/seller/ShippingMethodsPanel"
 
 export const metadata = { title: "Shop Settings | Seller Centre" }
 
 export default async function SettingsPage() {
   const shop = await getCurrentShop()
   if (!shop) redirect("/seller/onboarding")
+  const shippingMethods = await getShopShippingMethods(shop.id)
 
   return (
     <div className="space-y-6">
@@ -30,6 +32,7 @@ export default async function SettingsPage() {
         initialIsOnVacation={shop.isOnVacation}
         initialVacationMessage={shop.vacationMessage}
       />
+      <ShippingMethodsPanel methods={shippingMethods} />
     </div>
   )
 }

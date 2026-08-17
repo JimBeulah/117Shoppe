@@ -3,9 +3,20 @@ import Link from "next/link"
 import { getCurrentUser } from "@/lib/data/user"
 import { getSellerOrderDetail } from "@/lib/seller/queries"
 import { getShopAccess, canAccess } from "@/lib/seller/access"
-import { shipOrder } from "@/lib/seller/actions"
+import { shipOrder, updateDeliveryStatus } from "@/lib/seller/actions"
 import CancelOrderModal from "@/components/seller/CancelOrderModal"
+import { ReturnRequestReviewPanel } from "@/components/seller/ReturnRequestReviewPanel"
+import { OrderTimeline } from "@/components/orders/OrderTimeline"
 import { formatPrice } from "@/lib/utils"
+
+const DELIVERY_STATUS_ORDER = ["PACKED", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "FAILED"] as const
+const DELIVERY_STATUS_LABEL: Record<string, string> = {
+  PACKED: "Packed",
+  SHIPPED: "Shipped",
+  OUT_FOR_DELIVERY: "Out for Delivery",
+  DELIVERED: "Delivered",
+  FAILED: "Delivery Failed",
+}
 
 interface Props {
   params: Promise<{ id: string }>
@@ -66,6 +77,11 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
           {order.address.street}, {order.address.barangay}, {order.address.city}, {order.address.province}{" "}
           {order.address.postalCode}
         </p>
+        {order.shippingMethodName && (
+          <p className="text-sm text-text-secondary">
+            Method: <span className="text-text-primary font-medium">{order.shippingMethodName}</span>
+          </p>
+        )}
       </section>
 
       {/* Order Items */}
@@ -174,18 +190,56 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
         )}
 
         {order.status === "SHIPPED" && order.shipment && (
-          <dl className="space-y-2 text-sm">
-            <div>
-              <dt className="text-xs text-text-secondary uppercase tracking-wide">Courier</dt>
-              <dd className="text-text-primary font-medium">{order.shipment.courier ?? "—"}</dd>
+          <div className="space-y-4">
+            <dl className="space-y-2 text-sm">
+              <div>
+                <dt className="text-xs text-text-secondary uppercase tracking-wide">Courier</dt>
+                <dd className="text-text-primary font-medium">{order.shipment.courier ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-text-secondary uppercase tracking-wide">Tracking Number</dt>
+                <dd className="text-text-primary font-medium font-mono">
+                  {order.shipment.trackingNumber ?? "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-text-secondary uppercase tracking-wide">Delivery Status</dt>
+                <dd className="text-text-primary font-medium">
+                  {DELIVERY_STATUS_LABEL[order.shipment.status] ?? order.shipment.status}
+                </dd>
+              </div>
+            </dl>
+
+            {shipError && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+                {shipError}
+              </p>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              {DELIVERY_STATUS_ORDER.filter(
+                (status) => DELIVERY_STATUS_ORDER.indexOf(status) > DELIVERY_STATUS_ORDER.indexOf(order.shipment!.status as (typeof DELIVERY_STATUS_ORDER)[number])
+              ).map((status) => (
+                <form
+                  key={status}
+                  action={async () => {
+                    "use server"
+                    const result = await updateDeliveryStatus(order.id, status)
+                    if (result?.error) {
+                      redirect(`/seller/orders/${order.id}?error=${encodeURIComponent(result.error)}`)
+                    }
+                  }}
+                >
+                  <button
+                    type="submit"
+                    className="text-sm px-4 py-2 rounded border border-border-default text-text-primary hover:bg-brand-50 hover:border-brand-500 transition-colors"
+                  >
+                    Mark as {DELIVERY_STATUS_LABEL[status]}
+                  </button>
+                </form>
+              ))}
             </div>
-            <div>
-              <dt className="text-xs text-text-secondary uppercase tracking-wide">Tracking Number</dt>
-              <dd className="text-text-primary font-medium font-mono">
-                {order.shipment.trackingNumber ?? "—"}
-              </dd>
-            </div>
-          </dl>
+          </div>
         )}
 
         {(order.status === "DELIVERED" || order.status === "CANCELLED") && (
@@ -201,6 +255,10 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
           <CancelOrderModal orderId={order.id} />
         </div>
       )}
+
+      {order.returnRequest && <ReturnRequestReviewPanel returnRequest={order.returnRequest} />}
+
+      <OrderTimeline events={order.timelineEvents} />
     </div>
   )
 }
