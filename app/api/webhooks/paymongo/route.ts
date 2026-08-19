@@ -4,6 +4,7 @@ import { createNotification } from "@/lib/notifications/create"
 import { buildOrderStatusCopy } from "@/lib/notifications/copy"
 import { verifyPaymongoSignature } from "@/lib/payments/verifyPaymongoSignature"
 import { logOrderEvent } from "@/lib/orders/timeline"
+import { commitReservationsForOrder } from "@/lib/inventory/reservations"
 
 export async function POST(req: Request) {
   const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
             },
           })
           await tx.order.update({ where: { id: payment.orderId }, data: { status: "PAID" } })
+          await commitReservationsForOrder(tx, payment.orderId)
           await logOrderEvent(tx, {
             orderId: payment.orderId,
             type: "PAYMENT_RECEIVED",

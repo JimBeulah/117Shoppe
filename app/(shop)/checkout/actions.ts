@@ -11,6 +11,8 @@ import { buildNewOrderCopy } from "@/lib/notifications/copy"
 import { createPaymongoLink } from "@/lib/payments/paymongo"
 import { getShippingOptionsForShops, type ShippingRateOption } from "@/lib/shipping/rates"
 import { logOrderEvent } from "@/lib/orders/timeline"
+import { logStockMovement } from "@/lib/inventory/stock"
+import { createReservation, releaseExpiredReservations } from "@/lib/inventory/reservations"
 
 export async function getShippingOptionsForAddress(
   addressId: string
@@ -64,6 +66,9 @@ export async function placeOrder(
 ): Promise<{ orderIds?: string[]; checkoutUrl?: string; error?: string }> {
   const user = await getCurrentUser()
   if (!user) return { error: "Unauthorized" }
+
+  // Free up stock from any abandoned checkouts before checking availability
+  await releaseExpiredReservations()
 
   const address = await prisma.address.findUnique({ where: { id: addressId } })
   if (!address || address.userId !== user.id) return { error: "Invalid address" }
@@ -151,7 +156,26 @@ export async function placeOrder(
     try {
       order = await prisma.$transaction(async (tx) => {
         // Decrement stock atomically first, aborting if concurrent orders left too little
+        const stockMovements: {
+          productId: string
+          variantId: string | null
+          quantity: number
+          quantityBefore: number
+        }[] = []
         for (const item of items) {
+          // Best-effort: deplete the flash-sale promo pool for items sold at
+          // the flash price. Real Product/Variant stock (below) remains the
+          // sole source of oversell protection; if the flash pool ran out
+          // between page load and now, the buyer still keeps the flash price
+          // already locked in — we just skip tracking it against the pool.
+          const flashItem = item.product.flashSaleItems[0]
+          if (flashItem) {
+            await tx.flashSaleItem.updateMany({
+              where: { id: flashItem.id, stock: { gte: item.quantity } },
+              data: { stock: { decrement: item.quantity } },
+            })
+          }
+
           if (item.variantId) {
             const result = await tx.productVariant.updateMany({
               where: { id: item.variantId, stock: { gte: item.quantity } },
@@ -160,6 +184,12 @@ export async function placeOrder(
             if (result.count === 0) {
               throw new Error(`"${item.product.name}" no longer has enough stock.`)
             }
+            stockMovements.push({
+              productId: item.productId,
+              variantId: item.variantId,
+              quantity: item.quantity,
+              quantityBefore: item.variant!.stock,
+            })
           } else {
             const result = await tx.product.updateMany({
               where: { id: item.productId, stock: { gte: item.quantity } },
@@ -168,6 +198,12 @@ export async function placeOrder(
             if (result.count === 0) {
               throw new Error(`"${item.product.name}" no longer has enough stock.`)
             }
+            stockMovements.push({
+              productId: item.productId,
+              variantId: null,
+              quantity: item.quantity,
+              quantityBefore: item.product.stock,
+            })
           }
         }
 
@@ -204,6 +240,31 @@ export async function placeOrder(
             amount: orderTotal,
           },
         })
+
+        for (const movement of stockMovements) {
+          await logStockMovement(tx, {
+            productId: movement.productId,
+            variantId: movement.variantId,
+            shopId,
+            type: "SALE",
+            delta: -movement.quantity,
+            quantityBefore: movement.quantityBefore,
+            quantityAfter: movement.quantityBefore - movement.quantity,
+            orderId: newOrder.id,
+            actorId: user.id,
+            actorRole: "BUYER",
+          })
+          await createReservation(tx, {
+            productId: movement.productId,
+            variantId: movement.variantId,
+            shopId,
+            orderId: newOrder.id,
+            quantity: movement.quantity,
+            // COD is confirmed at placement; online payment holds until the
+            // PayMongo webhook confirms it (or the hold expires and releases).
+            committed: paymentMethod === "COD",
+          })
+        }
 
         await logOrderEvent(tx, {
           orderId: newOrder.id,

@@ -16,6 +16,8 @@ import {
 import { reconcileEligibleCommissions } from "@/lib/payouts/reconcile"
 import { MIN_PAYOUT_AMOUNT } from "@/lib/payouts/config"
 import { logOrderEvent } from "@/lib/orders/timeline"
+import { adjustStock, logStockMovement } from "@/lib/inventory/stock"
+import { releaseReservationsForOrder } from "@/lib/inventory/reservations"
 import type { UpsertProductData, BulkProductPatch } from "@/types/seller"
 import type { StaffPermission } from "@/lib/generated/prisma/client"
 
@@ -166,8 +168,14 @@ export async function upsertProduct(data: UpsertProductData): Promise<{ error?: 
   const shop = await requireShopAccess("PRODUCTS")
   if (!shop || shop.status !== "ACTIVE") return { error: "Unauthorized" }
 
+  let existing: Awaited<ReturnType<typeof prisma.product.findUnique>> & {
+    variants?: { id: string; name: string; stock: number }[]
+  } | null = null
   if (data.id) {
-    const existing = await prisma.product.findUnique({ where: { id: data.id } })
+    existing = await prisma.product.findUnique({
+      where: { id: data.id },
+      include: { variants: { select: { id: true, name: true, stock: true } } },
+    })
     if (!existing || existing.shopId !== shop.id) return { error: "Not found" }
   }
 
@@ -177,10 +185,13 @@ export async function upsertProduct(data: UpsertProductData): Promise<{ error?: 
   if (!data.categoryId) return { error: "Category is required" }
   if (data.price < 0) return { error: "Price must be non-negative" }
 
+  const actor = await getCurrentUser()
+  const newStock = data.variants.length === 0 ? data.stock : 0
+
   try {
     await prisma.$transaction(async (tx) => {
       let productId: string
-      if (data.id) {
+      if (data.id && existing) {
         await tx.product.update({
           where: { id: data.id },
           data: {
@@ -190,7 +201,7 @@ export async function upsertProduct(data: UpsertProductData): Promise<{ error?: 
             price: data.price,
             originalPrice: data.originalPrice ?? null,
             images: data.images,
-            stock: data.variants.length === 0 ? data.stock : 0,
+            stock: newStock,
             categoryId: data.categoryId,
             brandId: data.brandId || null,
             isActive: data.isActive,
@@ -198,6 +209,20 @@ export async function upsertProduct(data: UpsertProductData): Promise<{ error?: 
           },
         })
         productId = data.id
+
+        if (existing.stock !== newStock) {
+          await logStockMovement(tx, {
+            productId,
+            shopId: shop.id,
+            type: "MANUAL_ADJUSTMENT",
+            delta: newStock - existing.stock,
+            quantityBefore: existing.stock,
+            quantityAfter: newStock,
+            reason: "Updated via product edit form",
+            actorId: actor?.id,
+            actorRole: "SELLER",
+          })
+        }
       } else {
         const product = await tx.product.create({
           data: {
@@ -207,7 +232,7 @@ export async function upsertProduct(data: UpsertProductData): Promise<{ error?: 
             price: data.price,
             originalPrice: data.originalPrice ?? null,
             images: data.images,
-            stock: data.variants.length === 0 ? data.stock : 0,
+            stock: newStock,
             categoryId: data.categoryId,
             brandId: data.brandId || null,
             shopId: shop.id,
@@ -217,25 +242,88 @@ export async function upsertProduct(data: UpsertProductData): Promise<{ error?: 
           },
         })
         productId = product.id
+
+        if (newStock > 0) {
+          await logStockMovement(tx, {
+            productId,
+            shopId: shop.id,
+            type: "MANUAL_ADJUSTMENT",
+            delta: newStock,
+            quantityBefore: 0,
+            quantityAfter: newStock,
+            reason: "Initial stock set on product creation",
+            actorId: actor?.id,
+            actorRole: "SELLER",
+          })
+        }
       }
 
-      await tx.productVariant.deleteMany({ where: { productId } })
+      // Upsert variants by name so their ids (and stock movement history) stay
+      // stable across edits, instead of deleting and recreating every save.
+      const existingVariants = existing?.variants ?? []
+      const existingByName = new Map(existingVariants.map((v) => [v.name, v]))
+      const submittedNames = new Set(data.variants.map((v) => v.name))
 
-      if (data.variants.length > 0) {
-        await tx.productVariant.createMany({
-          data: data.variants.map((v) => ({
-            productId,
-            name: v.name,
-            price: v.price,
-            stock: v.stock,
-            sku: v.sku || null,
-            image: v.image || null,
-          })),
-        })
+      for (const v of data.variants) {
+        const match = existingByName.get(v.name)
+        if (match) {
+          await tx.productVariant.update({
+            where: { id: match.id },
+            data: { price: v.price, sku: v.sku || null, image: v.image || null, stock: v.stock },
+          })
+          if (match.stock !== v.stock) {
+            await logStockMovement(tx, {
+              productId,
+              variantId: match.id,
+              shopId: shop.id,
+              type: "MANUAL_ADJUSTMENT",
+              delta: v.stock - match.stock,
+              quantityBefore: match.stock,
+              quantityAfter: v.stock,
+              reason: "Updated via product edit form",
+              actorId: actor?.id,
+              actorRole: "SELLER",
+            })
+          }
+        } else {
+          const created = await tx.productVariant.create({
+            data: {
+              productId,
+              name: v.name,
+              price: v.price,
+              stock: v.stock,
+              sku: v.sku || null,
+              image: v.image || null,
+            },
+          })
+          if (v.stock > 0) {
+            await logStockMovement(tx, {
+              productId,
+              variantId: created.id,
+              shopId: shop.id,
+              type: "MANUAL_ADJUSTMENT",
+              delta: v.stock,
+              quantityBefore: 0,
+              quantityAfter: v.stock,
+              reason: "Initial stock set on variant creation",
+              actorId: actor?.id,
+              actorRole: "SELLER",
+            })
+          }
+        }
+      }
+
+      const removedVariantIds = existingVariants
+        .filter((v) => !submittedNames.has(v.name))
+        .map((v) => v.id)
+      if (removedVariantIds.length > 0) {
+        await tx.productVariant.deleteMany({ where: { id: { in: removedVariantIds } } })
       }
     })
   } catch (e: any) {
     if (e?.code === "P2002") return { error: "A product with that URL already exists." }
+    if (e?.code === "P2003")
+      return { error: "One of the removed variants has order or inventory history and can't be deleted." }
     return { error: "Failed to save product. Please try again." }
   }
 
@@ -419,7 +507,7 @@ export async function cancelOrder(orderId: string): Promise<{ error?: string }> 
   const shop = await requireShopAccess("ORDERS")
   if (!shop || shop.status !== "ACTIVE") return { error: "Unauthorized" }
 
-  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true } })
   if (!order || order.shopId !== shop.id) return { error: "Not found" }
   if (order.status !== "PAID") return { error: "Only PAID orders can be cancelled" }
 
@@ -427,6 +515,19 @@ export async function cancelOrder(orderId: string): Promise<{ error?: string }> 
 
   await prisma.$transaction(async (tx) => {
     await tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED" } })
+    for (const item of order.items) {
+      await adjustStock(tx, {
+        productId: item.productId,
+        variantId: item.variantId,
+        shopId: shop.id,
+        delta: item.quantity,
+        type: "CANCELLATION_RESTOCK",
+        orderId,
+        actorId: seller?.id,
+        actorRole: "SELLER",
+      })
+    }
+    await releaseReservationsForOrder(tx, orderId)
     await logOrderEvent(tx, {
       orderId,
       type: "ORDER_CANCELLED",

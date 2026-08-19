@@ -3,6 +3,7 @@ import { createPaymongoRefund } from "@/lib/payments/paymongo"
 import { createNotification } from "@/lib/notifications/create"
 import { buildReturnRefundCompletedCopy } from "@/lib/notifications/copy"
 import { logOrderEvent } from "@/lib/orders/timeline"
+import { adjustStock } from "@/lib/inventory/stock"
 
 const REFUND_ELIGIBLE_STATUSES = ["PAID", "SHIPPED", "DELIVERED", "CANCELLED"]
 
@@ -14,13 +15,21 @@ export async function executeRefund(params: {
 }): Promise<{ error?: string; refundId?: string }> {
   const order = await prisma.order.findUnique({
     where: { id: params.orderId },
-    include: { payment: true, refund: true },
+    include: { payment: true, refund: true, items: true },
   })
   if (!order || !order.payment) return { error: "Order or payment not found" }
   if (!REFUND_ELIGIBLE_STATUSES.includes(order.status)) {
     return { error: "Order is not eligible for a refund" }
   }
   if (order.refund) return { error: "This order has already been refunded" }
+
+  // A cancelled order was already restocked by cancelOrder — avoid restocking twice.
+  const alreadyRestocked =
+    order.status === "CANCELLED" &&
+    (await prisma.stockMovement.findFirst({
+      where: { orderId: order.id, type: "CANCELLATION_RESTOCK" },
+      select: { id: true },
+    })) != null
 
   let refundId: string
 
@@ -55,6 +64,19 @@ export async function executeRefund(params: {
           where: { orderId: order.id, status: { in: ["PENDING", "AVAILABLE"] } },
           data: { status: "REVERSED" },
         })
+        if (!alreadyRestocked) {
+          for (const item of order.items) {
+            await adjustStock(tx, {
+              productId: item.productId,
+              variantId: item.variantId,
+              shopId: order.shopId,
+              delta: item.quantity,
+              type: "REFUND_RESTOCK",
+              orderId: order.id,
+              actorId: params.initiatedByUserId,
+            })
+          }
+        }
         if (params.returnRequestId) {
           await tx.returnRequest.update({
             where: { id: params.returnRequestId },
@@ -88,6 +110,19 @@ export async function executeRefund(params: {
         })
         refundId = refund.id
         await tx.order.update({ where: { id: order.id }, data: { status: "REFUNDED" } })
+        if (!alreadyRestocked) {
+          for (const item of order.items) {
+            await adjustStock(tx, {
+              productId: item.productId,
+              variantId: item.variantId,
+              shopId: order.shopId,
+              delta: item.quantity,
+              type: "REFUND_RESTOCK",
+              orderId: order.id,
+              actorId: params.initiatedByUserId,
+            })
+          }
+        }
         if (params.returnRequestId) {
           await tx.returnRequest.update({
             where: { id: params.returnRequestId },

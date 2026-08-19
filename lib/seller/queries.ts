@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
 import { reconcileEligibleCommissions } from "@/lib/payouts/reconcile"
 import { escalateExpiredReturnRequests } from "@/lib/orders/timeline"
+import { releaseExpiredReservations } from "@/lib/inventory/reservations"
 import type { DashboardStats } from "@/types/seller"
 import type { ShopReviewWithProduct } from "@/types"
 import type { SellerBalance, SellerPayoutRow } from "@/types/payouts"
@@ -102,6 +103,8 @@ export async function getSellerOrders(
   page: number,
   search?: string | null
 ) {
+  await releaseExpiredReservations()
+
   const PAGE_SIZE = 20
   const where: any = { shopId }
   if (statusFilter) where.status = statusFilter as any
@@ -137,6 +140,7 @@ export async function getSellerOrders(
 
 export async function getSellerOrderDetail(orderId: string, shopId: string) {
   await escalateExpiredReturnRequests()
+  await releaseExpiredReservations()
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },

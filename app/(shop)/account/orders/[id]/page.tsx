@@ -6,6 +6,7 @@ import { OrderActions } from "@/components/account/OrderActions"
 import { ReturnRequestForm } from "@/components/account/ReturnRequestForm"
 import { ReturnRequestStatus } from "@/components/account/ReturnRequestStatus"
 import { OrderTimeline } from "@/components/orders/OrderTimeline"
+import { PaymentCountdown } from "@/components/account/PaymentCountdown"
 import { canRequestReturn } from "@/lib/orders/eligibility"
 import { formatPrice } from "@/lib/utils"
 
@@ -83,6 +84,16 @@ export default async function OrderDetailPage({ params }: Props) {
           )}
         </div>
       </div>
+
+      {order.status === "PENDING" && order.stockReservations.length > 0 && (
+        <PaymentCountdown
+          orderId={order.id}
+          expiresAt={order.stockReservations.reduce(
+            (max, r) => (r.expiresAt > max ? r.expiresAt : max),
+            order.stockReservations[0].expiresAt
+          )}
+        />
+      )}
 
       {/* Tracking */}
       {!isCancelled && (

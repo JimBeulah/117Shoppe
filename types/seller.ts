@@ -81,7 +81,7 @@ export interface BrandItem {
   name: string
 }
 
-export type StaffPermissionValue = "PRODUCTS" | "ORDERS" | "REVIEWS" | "CHAT"
+export type StaffPermissionValue = "PRODUCTS" | "ORDERS" | "REVIEWS" | "CHAT" | "INVENTORY"
 
 export interface StaffMember {
   id: string

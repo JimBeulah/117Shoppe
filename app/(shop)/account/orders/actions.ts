@@ -7,6 +7,9 @@ import { createNotification } from "@/lib/notifications/create"
 import { buildBuyerCancelledCopy, buildOrderReceivedCopy } from "@/lib/notifications/copy"
 import { PAYOUT_BUFFER_DAYS } from "@/lib/payouts/config"
 import { logOrderEvent } from "@/lib/orders/timeline"
+import { adjustStock } from "@/lib/inventory/stock"
+import { releaseReservationsForOrder } from "@/lib/inventory/reservations"
+import { retrievePaymongoLink } from "@/lib/payments/paymongo"
 
 export async function cancelOrder(orderId: string): Promise<{ error?: string }> {
   const user = await getCurrentUser()
@@ -14,7 +17,7 @@ export async function cancelOrder(orderId: string): Promise<{ error?: string }> 
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { shop: { select: { ownerId: true } } },
+    include: { shop: { select: { ownerId: true } }, items: true },
   })
   if (!order || order.userId !== user.id) return { error: "Not found" }
   if (order.status !== "PENDING" && order.status !== "PAID") {
@@ -23,6 +26,19 @@ export async function cancelOrder(orderId: string): Promise<{ error?: string }> 
 
   await prisma.$transaction(async (tx) => {
     await tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED" } })
+    for (const item of order.items) {
+      await adjustStock(tx, {
+        productId: item.productId,
+        variantId: item.variantId,
+        shopId: order.shopId,
+        delta: item.quantity,
+        type: "CANCELLATION_RESTOCK",
+        orderId,
+        actorId: user.id,
+        actorRole: "BUYER",
+      })
+    }
+    await releaseReservationsForOrder(tx, orderId)
     await logOrderEvent(tx, {
       orderId,
       type: "ORDER_CANCELLED",
@@ -40,6 +56,25 @@ export async function cancelOrder(orderId: string): Promise<{ error?: string }> 
   revalidatePath(`/account/orders/${orderId}`)
   revalidatePath("/account/orders")
   return {}
+}
+
+export async function resumePayment(orderId: string): Promise<{ checkoutUrl?: string; error?: string }> {
+  const user = await getCurrentUser()
+  if (!user) return { error: "Unauthorized" }
+
+  const order = await prisma.order.findUnique({ where: { id: orderId }, include: { payment: true } })
+  if (!order || order.userId !== user.id) return { error: "Not found" }
+  if (order.status !== "PENDING" || !order.payment || order.payment.provider !== "PAYMONGO") {
+    return { error: "This order isn't awaiting online payment" }
+  }
+  if (!order.payment.checkoutSessionId) return { error: "No payment link found for this order" }
+
+  try {
+    const link = await retrievePaymongoLink(order.payment.checkoutSessionId)
+    return { checkoutUrl: link.attributes.checkout_url }
+  } catch {
+    return { error: "Failed to retrieve payment link. Please try again." }
+  }
 }
 
 export async function markOrderReceived(orderId: string): Promise<{ error?: string }> {

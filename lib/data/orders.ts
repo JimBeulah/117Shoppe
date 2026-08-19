@@ -1,6 +1,7 @@
 import { cache } from "react"
 import { prisma } from "@/lib/db"
 import { escalateExpiredReturnRequests } from "@/lib/orders/timeline"
+import { releaseExpiredReservations } from "@/lib/inventory/reservations"
 import type { OrderWithItems } from "@/types"
 
 export const getBuyerOrders = cache(async (userId: string): Promise<OrderWithItems[]> => {
@@ -28,6 +29,7 @@ export const getBuyerOrders = cache(async (userId: string): Promise<OrderWithIte
 
 export async function getBuyerOrderDetail(orderId: string, userId: string) {
   await escalateExpiredReturnRequests()
+  await releaseExpiredReservations()
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
@@ -45,6 +47,7 @@ export async function getBuyerOrderDetail(orderId: string, userId: string) {
       refund: true,
       returnRequest: true,
       timelineEvents: { orderBy: { createdAt: "asc" } },
+      stockReservations: { where: { status: "HELD" }, select: { expiresAt: true } },
     },
   })
   if (!order || order.userId !== userId) return null

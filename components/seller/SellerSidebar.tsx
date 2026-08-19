@@ -10,6 +10,7 @@ const NAV: { label: string; href: string; perm: StaffPermission | "OWNER_ONLY" |
   { label: "All Products", href: "/seller/products", perm: "PRODUCTS" },
   { label: "Add Product", href: "/seller/products/new", perm: "PRODUCTS" },
   { label: "Orders", href: "/seller/orders", perm: "ORDERS" },
+  { label: "Inventory", href: "/seller/inventory", perm: "INVENTORY" },
   { label: "Payouts", href: "/seller/payouts", perm: "OWNER_ONLY" },
   { label: "Reviews", href: "/seller/reviews", perm: "REVIEWS" },
   { label: "Messages", href: "/seller/chat", perm: "CHAT" },

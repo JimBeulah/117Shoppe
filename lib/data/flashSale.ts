@@ -8,14 +8,17 @@ export function activeFlashSaleItemInclude(now: Date = new Date()) {
   return {
     where: {
       flashSale: { isActive: true, startsAt: { lte: now }, endsAt: { gte: now } },
+      stock: { gt: 0 },
     },
-    select: { salePrice: true, flashSale: { select: { endsAt: true } } },
+    select: { id: true, salePrice: true, stock: true, flashSale: { select: { endsAt: true } } },
     take: 1,
   } as const
 }
 
 interface ActiveFlashSaleItem {
+  id: string
   salePrice: number
+  stock: number
   flashSale: { endsAt: Date }
 }
 
@@ -52,6 +55,7 @@ export const getHomeFlashSaleSection = cache(async (
     where: {
       flashSale: { isActive: true, startsAt: { lte: now }, endsAt: { gte: now } },
       product: { isActive: true, status: "APPROVED", shop: { isOnVacation: false } },
+      stock: { gt: 0 },
     },
     include: {
       product: { include: { shop: { select: { name: true, slug: true } } } },
@@ -94,6 +98,7 @@ export const getAllActiveFlashSaleProducts = cache(async (
   const where = {
     flashSale: { isActive: true, startsAt: { lte: now }, endsAt: { gte: now } },
     product: { isActive: true, status: "APPROVED", shop: { isOnVacation: false } },
+    stock: { gt: 0 },
   } as const
 
   const [items, total] = await Promise.all([

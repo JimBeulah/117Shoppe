@@ -130,6 +130,22 @@ enum OrderEventType {
   ORDER_STATUS_CHANGED_BY_ADMIN
 }
 
+enum StockMovementType {
+  SALE
+  CANCELLATION_RESTOCK
+  REFUND_RESTOCK
+  MANUAL_ADJUSTMENT
+  RESTOCK_IN
+  RESERVATION_EXPIRED_RESTOCK
+}
+
+enum ReservationStatus {
+  HELD
+  COMMITTED
+  RELEASED
+  EXPIRED
+}
+
 // ─── Phase 1 Models (seeded) ─────────────────────────────────────────────────
 
 model User {
@@ -145,46 +161,47 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  shop               Shop?
-  orders             Order[]
-  cart               Cart?
-  addresses          Address[]
-  reviews            Review[]
-  wishlist           Wishlist[]
-  notifications      Notification[]
-  sentMessages       Message[]        @relation("SentMessages")
-  receivedMessages   Message[]        @relation("ReceivedMessages")
-  searchHistory      SearchHistory[]
-  coinLogs           Coin[]
-  shopFollows        ShopFollow[]
-  buyerConversations Conversation[]   @relation("BuyerConversations")
-  refundsInitiated   Refund[]
-  auditLogs          AuditLog[]
-  staffMemberships   ShopStaff[]      @relation("StaffMemberships")
-  staffInvitesSent   ShopStaff[]      @relation("StaffInvitesSent")
-  returnRequestsFiled        ReturnRequest[]      @relation("ReturnRequestsFiled")
+  shop                        Shop?
+  orders                      Order[]
+  cart                        Cart?
+  addresses                   Address[]
+  reviews                     Review[]
+  wishlist                    Wishlist[]
+  notifications               Notification[]
+  sentMessages                Message[]            @relation("SentMessages")
+  receivedMessages            Message[]            @relation("ReceivedMessages")
+  searchHistory               SearchHistory[]
+  coinLogs                    Coin[]
+  shopFollows                 ShopFollow[]
+  buyerConversations          Conversation[]       @relation("BuyerConversations")
+  refundsInitiated            Refund[]
+  auditLogs                   AuditLog[]
+  staffMemberships            ShopStaff[]          @relation("StaffMemberships")
+  staffInvitesSent            ShopStaff[]          @relation("StaffInvitesSent")
+  returnRequestsFiled         ReturnRequest[]      @relation("ReturnRequestsFiled")
   returnRequestsSellerDecided ReturnRequest[]      @relation("ReturnRequestsSellerDecided")
   returnRequestsAdminDecided  ReturnRequest[]      @relation("ReturnRequestsAdminDecided")
-  timelineEventsActed        OrderTimelineEvent[]
+  timelineEventsActed         OrderTimelineEvent[]
+  stockMovementsActed         StockMovement[]
 }
 
 model Shop {
-  id             String   @id @default(cuid())
-  name           String
-  slug           String   @unique
-  logo           String?
-  banner         String?
-  rating         Float    @default(0)
-  followersCount Int      @default(0)
-  ownerId        String   @unique
-  createdAt      DateTime @default(now())
-  status         ShopStatus @default(PENDING)
+  id              String     @id @default(cuid())
+  name            String
+  slug            String     @unique
+  logo            String?
+  banner          String?
+  rating          Float      @default(0)
+  followersCount  Int        @default(0)
+  ownerId         String     @unique
+  createdAt       DateTime   @default(now())
+  status          ShopStatus @default(PENDING)
   rejectionReason String?
-  commissionRate Float    @default(10)
-  isOnVacation    Boolean  @default(false)
+  commissionRate  Float      @default(10)
+  isOnVacation    Boolean    @default(false)
   vacationMessage String?
 
-  owner             User              @relation(fields: [ownerId], references: [id])
+  owner             User                 @relation(fields: [ownerId], references: [id])
   products          Product[]
   orders            Order[]
   reviewReplies     ReviewReply[]
@@ -195,6 +212,8 @@ model Shop {
   staff             ShopStaff[]
   shippingMethods   ShopShippingMethod[]
   returnRequests    ReturnRequest[]
+  stockMovements    StockMovement[]
+  stockReservations StockReservation[]
 }
 
 enum StaffPermission {
@@ -202,6 +221,7 @@ enum StaffPermission {
   ORDERS
   REVIEWS
   CHAT
+  INVENTORY
 }
 
 model ShopStaff {
@@ -267,15 +287,17 @@ model Product {
   updatedAt       DateTime      @updatedAt
   variantOptions  Json?
 
-  category       Category        @relation(fields: [categoryId], references: [id])
-  brand          Brand?           @relation(fields: [brandId], references: [id])
-  shop           Shop            @relation(fields: [shopId], references: [id])
-  variants       ProductVariant[]
-  cartItems      CartItem[]
-  orderItems     OrderItem[]
-  reviews        Review[]
-  wishlist       Wishlist[]
-  flashSaleItems FlashSaleItem[]
+  category          Category           @relation(fields: [categoryId], references: [id])
+  brand             Brand?             @relation(fields: [brandId], references: [id])
+  shop              Shop               @relation(fields: [shopId], references: [id])
+  variants          ProductVariant[]
+  cartItems         CartItem[]
+  orderItems        OrderItem[]
+  reviews           Review[]
+  wishlist          Wishlist[]
+  flashSaleItems    FlashSaleItem[]
+  stockMovements    StockMovement[]
+  stockReservations StockReservation[]
 }
 
 model ProductVariant {
@@ -287,9 +309,11 @@ model ProductVariant {
   sku       String?
   image     String?
 
-  product    Product    @relation(fields: [productId], references: [id])
-  cartItems  CartItem[]
-  orderItems OrderItem[]
+  product           Product            @relation(fields: [productId], references: [id])
+  cartItems         CartItem[]
+  orderItems        OrderItem[]
+  stockMovements    StockMovement[]
+  stockReservations StockReservation[]
 }
 
 model Banner {
@@ -321,9 +345,9 @@ model Voucher {
 // ─── Phase 2–3 Models ────────────────────────────────────────────────────────
 
 model Cart {
-  id        String     @id @default(cuid())
-  userId    String     @unique
-  createdAt DateTime   @default(now())
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
 
   user  User       @relation(fields: [userId], references: [id])
   items CartItem[]
@@ -357,18 +381,20 @@ model Order {
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
-  user           User            @relation(fields: [userId], references: [id])
-  shop           Shop            @relation(fields: [shopId], references: [id])
-  address        Address         @relation(fields: [addressId], references: [id])
-  voucher        Voucher?        @relation(fields: [voucherId], references: [id])
-  shippingMethod ShippingMethod? @relation(fields: [shippingMethodId], references: [id])
-  items           OrderItem[]
-  payment         Payment?
-  shipment        Shipment?
-  refund          Refund?
-  commissionEntry CommissionEntry?
-  returnRequest   ReturnRequest?
-  timelineEvents  OrderTimelineEvent[]
+  user              User                 @relation(fields: [userId], references: [id])
+  shop              Shop                 @relation(fields: [shopId], references: [id])
+  address           Address              @relation(fields: [addressId], references: [id])
+  voucher           Voucher?             @relation(fields: [voucherId], references: [id])
+  shippingMethod    ShippingMethod?      @relation(fields: [shippingMethodId], references: [id])
+  items             OrderItem[]
+  payment           Payment?
+  shipment          Shipment?
+  refund            Refund?
+  commissionEntry   CommissionEntry?
+  returnRequest     ReturnRequest?
+  timelineEvents    OrderTimelineEvent[]
+  stockMovements    StockMovement[]
+  stockReservations StockReservation[]
 }
 
 model OrderItem {
@@ -390,7 +416,7 @@ model Address {
   fullName   String
   phone      String
   street     String
-  barangay   String @default("")
+  barangay   String  @default("")
   city       String
   province   String
   postalCode String
@@ -431,24 +457,24 @@ model Refund {
   createdAt         DateTime     @default(now())
   processedAt       DateTime?
 
-  payment     Payment @relation(fields: [paymentId], references: [id])
-  order       Order   @relation(fields: [orderId], references: [id])
-  initiatedBy User    @relation(fields: [initiatedByUserId], references: [id])
+  payment       Payment        @relation(fields: [paymentId], references: [id])
+  order         Order          @relation(fields: [orderId], references: [id])
+  initiatedBy   User           @relation(fields: [initiatedByUserId], references: [id])
   returnRequest ReturnRequest?
 }
 
 model ReturnRequest {
-  id          String              @id @default(cuid())
-  orderId     String              @unique
-  buyerId     String
-  shopId      String
+  id      String @id @default(cuid())
+  orderId String @unique
+  buyerId String
+  shopId  String
 
-  type        ReturnRequestType
-  reason      ReturnRequestReason
-  description String
-  evidenceUrls String[]           @default([])
+  type         ReturnRequestType
+  reason       ReturnRequestReason
+  description  String
+  evidenceUrls String[]            @default([])
 
-  status      ReturnRequestStatus @default(PENDING_SELLER)
+  status ReturnRequestStatus @default(PENDING_SELLER)
 
   sellerReviewDeadline  DateTime
   sellerDecisionNote    String?
@@ -459,7 +485,7 @@ model ReturnRequest {
   adminDecidedAt       DateTime?
   adminDecidedByUserId String?
 
-  refundId   String?  @unique
+  refundId   String?   @unique
   resolvedAt DateTime?
 
   createdAt DateTime @default(now())
@@ -513,15 +539,15 @@ model CommissionEntry {
 }
 
 model Payout {
-  id                 String       @id @default(cuid())
-  shopId             String
-  amount             Float
-  status             PayoutStatus @default(REQUESTED)
-  requestedAt        DateTime     @default(now())
-  processedByUserId  String?
-  processedAt        DateTime?
-  referenceNote      String?
-  createdAt          DateTime     @default(now())
+  id                String       @id @default(cuid())
+  shopId            String
+  amount            Float
+  status            PayoutStatus @default(REQUESTED)
+  requestedAt       DateTime     @default(now())
+  processedByUserId String?
+  processedAt       DateTime?
+  referenceNote     String?
+  createdAt         DateTime     @default(now())
 
   shop    Shop              @relation(fields: [shopId], references: [id])
   entries CommissionEntry[]
@@ -627,11 +653,11 @@ model Wishlist {
 }
 
 model FlashSale {
-  id       String          @id @default(cuid())
+  id       String   @id @default(cuid())
   title    String
   startsAt DateTime
   endsAt   DateTime
-  isActive Boolean         @default(true)
+  isActive Boolean  @default(true)
 
   items FlashSaleItem[]
 }
@@ -720,6 +746,56 @@ model Coin {
   createdAt   DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model StockMovement {
+  id             String            @id @default(cuid())
+  productId      String
+  variantId      String?
+  shopId         String
+  type           StockMovementType
+  delta          Int
+  quantityBefore Int
+  quantityAfter  Int
+  reason         String?
+  orderId        String?
+  actorId        String?
+  actorRole      Role?
+  metadata       Json?
+  createdAt      DateTime          @default(now())
+
+  product Product         @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+  shop    Shop            @relation(fields: [shopId], references: [id])
+  order   Order?          @relation(fields: [orderId], references: [id])
+  actor   User?           @relation(fields: [actorId], references: [id])
+
+  @@index([productId, createdAt])
+  @@index([variantId, createdAt])
+  @@index([shopId, createdAt])
+  @@index([orderId])
+}
+
+model StockReservation {
+  id        String            @id @default(cuid())
+  productId String
+  variantId String?
+  shopId    String
+  orderId   String
+  quantity  Int
+  status    ReservationStatus @default(HELD)
+  expiresAt DateTime
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  product Product         @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+  shop    Shop            @relation(fields: [shopId], references: [id])
+  order   Order           @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([status, expiresAt])
+  @@index([productId, status])
 }
 
 model AuditLog {
