@@ -210,6 +210,10 @@ export interface ReviewWithUser {
   id: string
   rating: number
   comment: string | null
+  images: string[]
+  videos: string[]
+  helpfulCount: number
+  hasVoted: boolean
   createdAt: Date
   user: { name: string }
   reply: { comment: string } | null

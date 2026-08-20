@@ -6,6 +6,9 @@ vi.mock("@/lib/data/notifications", () => ({
   markNotificationRead: vi.fn(),
   markAllNotificationsRead: vi.fn(),
 }))
+vi.mock("@/lib/notifications/preferences", () => ({
+  setNotificationPreference: vi.fn(),
+}))
 
 describe("markAsRead", () => {
   beforeEach(() => vi.clearAllMocks())
@@ -54,5 +57,30 @@ describe("markAllAsRead", () => {
     await markAllAsRead()
 
     expect(markAllNotificationsRead).toHaveBeenCalledWith("u1")
+  })
+})
+
+describe("updateNotificationPreference", () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it("returns error when unauthenticated", async () => {
+    const { getCurrentUser } = await import("@/lib/data/user")
+    vi.mocked(getCurrentUser).mockResolvedValue(null)
+
+    const { updateNotificationPreference } = await import("@/lib/notifications/actions")
+    const result = await updateNotificationPreference("NEW_MESSAGE", false)
+
+    expect(result).toEqual({ error: "Unauthorized" })
+  })
+
+  it("updates the preference for the current user", async () => {
+    const { getCurrentUser } = await import("@/lib/data/user")
+    vi.mocked(getCurrentUser).mockResolvedValue({ id: "u1" } as any)
+
+    const { setNotificationPreference } = await import("@/lib/notifications/preferences")
+    const { updateNotificationPreference } = await import("@/lib/notifications/actions")
+    await updateNotificationPreference("NEW_MESSAGE", false)
+
+    expect(setNotificationPreference).toHaveBeenCalledWith("u1", "NEW_MESSAGE", false)
   })
 })

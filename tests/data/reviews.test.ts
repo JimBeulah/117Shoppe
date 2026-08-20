@@ -16,7 +16,17 @@ describe("getProductReviews", () => {
   it("returns reviews ordered by createdAt desc, page 1", async () => {
     const { prisma } = await import("@/lib/db")
     const mockReviews = [
-      { id: "r1", rating: 5, comment: "Great!", createdAt: new Date(), user: { name: "Alice" }, reply: null },
+      {
+        id: "r1",
+        rating: 5,
+        comment: "Great!",
+        images: [],
+        videos: [],
+        helpfulCount: 0,
+        createdAt: new Date(),
+        user: { name: "Alice" },
+        reply: null,
+      },
     ]
     vi.mocked(prisma.review.findMany).mockResolvedValue(mockReviews as any)
 
@@ -31,7 +41,7 @@ describe("getProductReviews", () => {
         take: 10,
       })
     )
-    expect(result).toEqual(mockReviews)
+    expect(result).toEqual(mockReviews.map((r) => ({ ...r, hasVoted: false })))
   })
 
   it("skips correctly for page 2", async () => {
@@ -44,6 +54,36 @@ describe("getProductReviews", () => {
     expect(prisma.review.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ skip: 10 })
     )
+  })
+
+  it("marks hasVoted true when the given user has an existing vote", async () => {
+    const { prisma } = await import("@/lib/db")
+    vi.mocked(prisma.review.findMany).mockResolvedValue([
+      {
+        id: "r1",
+        rating: 5,
+        comment: "Great!",
+        images: [],
+        videos: [],
+        helpfulCount: 1,
+        createdAt: new Date(),
+        user: { name: "Alice" },
+        reply: null,
+        votes: [{ id: "v1" }],
+      },
+    ] as any)
+
+    const { getProductReviews } = await import("@/lib/data/reviews")
+    const result = await getProductReviews("prod-1", 1, "u1")
+
+    expect(prisma.review.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          votes: { where: { userId: "u1" }, select: { id: true } },
+        }),
+      })
+    )
+    expect(result[0].hasVoted).toBe(true)
   })
 })
 

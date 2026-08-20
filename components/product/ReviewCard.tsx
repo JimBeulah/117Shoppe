@@ -1,10 +1,12 @@
 import type { ReviewWithUser } from "@/types"
+import { HelpfulButton } from "@/components/reviews/HelpfulButton"
 
 interface ReviewCardProps {
   review: ReviewWithUser
+  productSlug: string
 }
 
-export function ReviewCard({ review }: ReviewCardProps) {
+export function ReviewCard({ review, productSlug }: ReviewCardProps) {
   const initial = review.user.name.charAt(0).toUpperCase()
   const firstName = review.user.name.split(" ")[0]
 
@@ -35,6 +37,32 @@ export function ReviewCard({ review }: ReviewCardProps) {
           {review.comment && (
             <p className="text-sm text-text-primary mt-1.5 leading-relaxed">{review.comment}</p>
           )}
+          {(review.images.length > 0 || review.videos.length > 0) && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {review.images.map((url, i) => (
+                <img
+                  key={url}
+                  src={url}
+                  alt={`Review photo ${i + 1}`}
+                  className="w-16 h-16 object-cover rounded border border-border-default"
+                />
+              ))}
+              {review.videos.map((url) => (
+                <video
+                  key={url}
+                  src={url}
+                  controls
+                  className="w-16 h-16 object-cover rounded border border-border-default"
+                />
+              ))}
+            </div>
+          )}
+          <HelpfulButton
+            reviewId={review.id}
+            productSlug={productSlug}
+            helpfulCount={review.helpfulCount}
+            hasVoted={review.hasVoted}
+          />
           {review.reply && (
             <div className="mt-3 ml-2 pl-3 border-l-2 border-border-default bg-bg-page rounded-r px-3 py-2">
               <p className="text-xs font-medium text-text-secondary mb-1">Shop&apos;s response:</p>

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
+import { toggleHelpfulVote } from "@/lib/reviews/votes"
 
 export async function submitReview(data: {
   productId: string
@@ -10,11 +11,13 @@ export async function submitReview(data: {
   orderId: string
   rating: number
   comment: string
+  images?: string[]
+  videos?: string[]
 }): Promise<{ error?: string }> {
   const user = await getCurrentUser()
   if (!user) return { error: "Sign in to leave a review" }
 
-  const { productId, productSlug, orderId, rating, comment } = data
+  const { productId, productSlug, orderId, rating, comment, images = [], videos = [] } = data
 
   if (rating < 1 || rating > 5) return { error: "Rating must be 1–5" }
 
@@ -41,7 +44,8 @@ export async function submitReview(data: {
           orderId,
           rating,
           comment: comment.trim() || null,
-          images: [],
+          images,
+          videos,
         },
       })
 
@@ -67,4 +71,17 @@ export async function submitReview(data: {
   revalidatePath("/account/orders")
 
   return {}
+}
+
+export async function voteReviewHelpful(
+  reviewId: string,
+  productSlug: string
+): Promise<{ error?: string; voted?: boolean }> {
+  const user = await getCurrentUser()
+  if (!user) return { error: "Sign in to vote" }
+
+  const { voted } = await toggleHelpfulVote(user.id, reviewId)
+  revalidatePath(`/product/${productSlug}`)
+
+  return { voted }
 }

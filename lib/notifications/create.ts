@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db"
 import { getIO } from "@/lib/socket/io"
+import { isNotificationTypeEnabled } from "@/lib/notifications/preferences"
 
 interface CreateNotificationInput {
   userId: string
@@ -10,6 +11,8 @@ interface CreateNotificationInput {
 }
 
 export async function createNotification({ userId, type, title, message, link = null }: CreateNotificationInput) {
+  if (!(await isNotificationTypeEnabled(userId, type))) return null
+
   const notification = await prisma.notification.create({
     data: { userId, type, title, message, link },
   })

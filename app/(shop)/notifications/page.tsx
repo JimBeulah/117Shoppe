@@ -27,11 +27,16 @@ export default async function NotificationsPage({ searchParams }: Props) {
     <div className="max-w-2xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-text-primary">Notifications</h1>
-        <form action={markAllAsRead}>
-          <button type="submit" className="text-sm text-brand-600 hover:underline">
-            Mark all as read
-          </button>
-        </form>
+        <div className="flex items-center gap-3">
+          <Link href="/notifications/settings" className="text-sm text-brand-600 hover:underline">
+            Settings
+          </Link>
+          <form action={markAllAsRead}>
+            <button type="submit" className="text-sm text-brand-600 hover:underline">
+              Mark all as read
+            </button>
+          </form>
+        </div>
       </div>
 
       <div className="border border-border rounded-lg overflow-hidden divide-y divide-border">

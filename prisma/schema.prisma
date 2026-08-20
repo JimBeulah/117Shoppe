@@ -166,8 +166,10 @@ model User {
   cart                        Cart?
   addresses                   Address[]
   reviews                     Review[]
+  reviewVotes                 ReviewVote[]
   wishlist                    Wishlist[]
   notifications               Notification[]
+  notificationPreferences     NotificationPreference[]
   sentMessages                Message[]            @relation("SentMessages")
   receivedMessages            Message[]            @relation("ReceivedMessages")
   searchHistory               SearchHistory[]
@@ -616,18 +618,33 @@ model ShopShippingMethod {
 // ─── Phase 4+ Models ─────────────────────────────────────────────────────────
 
 model Review {
-  id        String   @id @default(cuid())
-  userId    String
-  productId String
-  orderId   String?
-  rating    Int
-  comment   String?
-  images    String[]
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  userId       String
+  productId    String
+  orderId      String?
+  rating       Int
+  comment      String?
+  images       String[]
+  videos       String[] @default([])
+  helpfulCount Int      @default(0)
+  createdAt    DateTime @default(now())
 
   user    User         @relation(fields: [userId], references: [id])
   product Product      @relation(fields: [productId], references: [id])
   reply   ReviewReply?
+  votes   ReviewVote[]
+}
+
+model ReviewVote {
+  id        String   @id @default(cuid())
+  userId    String
+  reviewId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  review Review @relation(fields: [reviewId], references: [id])
+
+  @@unique([userId, reviewId])
 }
 
 model ReviewReply {
@@ -684,6 +701,17 @@ model Notification {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model NotificationPreference {
+  id      String  @id @default(cuid())
+  userId  String
+  type    String
+  enabled Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, type])
 }
 
 model Message {

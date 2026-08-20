@@ -26,6 +26,10 @@ vi.mock("@/lib/db", () => ({
   },
 }))
 
+vi.mock("@/lib/reviews/votes", () => ({
+  toggleHelpfulVote: vi.fn(),
+}))
+
 describe("submitReview", () => {
   beforeEach(() => vi.clearAllMocks())
 
@@ -85,12 +89,27 @@ describe("submitReview", () => {
     mockTx.review.findFirst.mockResolvedValue(null)
 
     const { submitReview } = await import("@/lib/actions/reviews")
-    const result = await submitReview({ productId: "p1", productSlug: "prod-slug", orderId: "o1", rating: 5, comment: "Great!" })
+    const result = await submitReview({
+      productId: "p1",
+      productSlug: "prod-slug",
+      orderId: "o1",
+      rating: 5,
+      comment: "Great!",
+      images: ["https://x/img.jpg"],
+      videos: ["https://x/vid.mp4"],
+    })
 
     expect(result).toEqual({})
     expect(mockTx.review.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ userId: "u1", productId: "p1", rating: 5, comment: "Great!" }),
+        data: expect.objectContaining({
+          userId: "u1",
+          productId: "p1",
+          rating: 5,
+          comment: "Great!",
+          images: ["https://x/img.jpg"],
+          videos: ["https://x/vid.mp4"],
+        }),
       })
     )
     expect(mockTx.product.update).toHaveBeenCalledWith(
@@ -99,5 +118,51 @@ describe("submitReview", () => {
         data: { rating: 4.5, reviewCount: 2 },
       })
     )
+  })
+
+  it("defaults images and videos to empty arrays when omitted", async () => {
+    const { getCurrentUser } = await import("@/lib/data/user")
+    vi.mocked(getCurrentUser).mockResolvedValue({ id: "u1", role: "BUYER" } as any)
+
+    const { prisma } = await import("@/lib/db")
+    vi.mocked(prisma.orderItem.findFirst).mockResolvedValue({ id: "oi1" } as any)
+    mockTx.review.findFirst.mockResolvedValue(null)
+
+    const { submitReview } = await import("@/lib/actions/reviews")
+    await submitReview({ productId: "p1", productSlug: "prod-slug", orderId: "o1", rating: 5, comment: "Great!" })
+
+    expect(mockTx.review.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ images: [], videos: [] }),
+      })
+    )
+  })
+})
+
+describe("voteReviewHelpful", () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it("returns error when not authenticated", async () => {
+    const { getCurrentUser } = await import("@/lib/data/user")
+    vi.mocked(getCurrentUser).mockResolvedValue(null)
+
+    const { voteReviewHelpful } = await import("@/lib/actions/reviews")
+    const result = await voteReviewHelpful("r1", "prod-slug")
+
+    expect(result).toEqual({ error: "Sign in to vote" })
+  })
+
+  it("delegates to toggleHelpfulVote and returns the new voted state", async () => {
+    const { getCurrentUser } = await import("@/lib/data/user")
+    vi.mocked(getCurrentUser).mockResolvedValue({ id: "u1", role: "BUYER" } as any)
+
+    const { toggleHelpfulVote } = await import("@/lib/reviews/votes")
+    vi.mocked(toggleHelpfulVote).mockResolvedValue({ voted: true })
+
+    const { voteReviewHelpful } = await import("@/lib/actions/reviews")
+    const result = await voteReviewHelpful("r1", "prod-slug")
+
+    expect(toggleHelpfulVote).toHaveBeenCalledWith("u1", "r1")
+    expect(result).toEqual({ voted: true })
   })
 })

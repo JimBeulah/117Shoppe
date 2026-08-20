@@ -44,6 +44,19 @@ export const ourFileRouter = {
     .onUploadComplete(async ({ file }) => {
       return { url: file.url }
     }),
+
+  reviewMedia: f({
+    image: { maxFileSize: "4MB", maxFileCount: 5 },
+    video: { maxFileSize: "16MB", maxFileCount: 2 },
+  })
+    .middleware(async () => {
+      const { userId } = await auth()
+      if (!userId) throw new UploadThingError("Unauthorized")
+      return { userId }
+    })
+    .onUploadComplete(async ({ file }) => {
+      return { url: file.url, type: file.type }
+    }),
 } satisfies FileRouter
 
 export type OurFileRouter = typeof ourFileRouter

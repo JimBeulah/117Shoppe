@@ -13,6 +13,10 @@ vi.mock("@/lib/socket/io", () => ({
   getIO: vi.fn(),
 }))
 
+vi.mock("@/lib/notifications/preferences", () => ({
+  isNotificationTypeEnabled: vi.fn().mockResolvedValue(true),
+}))
+
 const mockNotification = {
   id: "n1",
   userId: "u1",
@@ -70,5 +74,23 @@ describe("createNotification", () => {
     await expect(
       createNotification({ userId: "u1", type: "NEW_MESSAGE", title: "New message", message: "Hi!", link: null })
     ).resolves.toBeDefined()
+  })
+
+  it("skips creation when the user has muted the notification type", async () => {
+    const { prisma } = await import("@/lib/db")
+    const { isNotificationTypeEnabled } = await import("@/lib/notifications/preferences")
+    vi.mocked(isNotificationTypeEnabled).mockResolvedValueOnce(false)
+
+    const { createNotification } = await import("@/lib/notifications/create")
+    const result = await createNotification({
+      userId: "u1",
+      type: "NEW_MESSAGE",
+      title: "New message",
+      message: "Hi!",
+      link: "/chat",
+    })
+
+    expect(result).toBeNull()
+    expect(prisma.notification.create).not.toHaveBeenCalled()
   })
 })

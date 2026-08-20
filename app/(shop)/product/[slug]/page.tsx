@@ -106,6 +106,7 @@ export default async function ProductPage({ params }: Props) {
         <div className="bg-bg-surface p-6">
           <ReviewsSection
             productId={product.id}
+            productSlug={product.slug}
             productRating={product.rating}
             productReviewCount={product.reviewCount}
           />

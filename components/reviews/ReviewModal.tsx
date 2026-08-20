@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { StarPicker } from "@/components/reviews/StarPicker"
+import { ReviewMediaUploader } from "@/components/reviews/ReviewMediaUploader"
 import { submitReview } from "@/lib/actions/reviews"
 
 interface ReviewModalProps {
@@ -15,6 +16,8 @@ interface ReviewModalProps {
 export function ReviewModal({ productId, productSlug, productName, orderId, onClose }: ReviewModalProps) {
   const [rating, setRating] = useState(0)
   const [comment, setComment] = useState("")
+  const [images, setImages] = useState<string[]>([])
+  const [videos, setVideos] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -22,7 +25,7 @@ export function ReviewModal({ productId, productSlug, productName, orderId, onCl
     if (rating === 0) return
     setError(null)
     startTransition(async () => {
-      const result = await submitReview({ productId, productSlug, orderId, rating, comment })
+      const result = await submitReview({ productId, productSlug, orderId, rating, comment, images, videos })
       if (result.error) {
         setError(result.error)
       } else {
@@ -65,6 +68,13 @@ export function ReviewModal({ productId, productSlug, productName, orderId, onCl
           />
           <p className="text-xs text-text-secondary text-right mt-0.5">{comment.length}/500</p>
         </div>
+
+        <ReviewMediaUploader
+          images={images}
+          videos={videos}
+          onImagesChange={setImages}
+          onVideosChange={setVideos}
+        />
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
