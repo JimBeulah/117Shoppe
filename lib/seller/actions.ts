@@ -645,3 +645,63 @@ export async function removeStaffMember(staffId: string): Promise<{ error?: stri
   revalidatePath("/seller/settings/staff")
   return {}
 }
+
+// ─── Vouchers ─────────────────────────────────────────────────────────────────
+
+export async function createSellerVoucher(data: {
+  code: string
+  title: string
+  discountType: "PERCENT" | "FIXED"
+  discountValue: number
+  minSpend: number
+  maxDiscount: number | null
+  expiresAt: Date
+  usageLimit: number | null
+  isActive: boolean
+}): Promise<{ error?: string }> {
+  const shop = await requireShopAccess("VOUCHERS")
+  if (!shop) return { error: "Unauthorized" }
+  if (shop.status !== "ACTIVE") return { error: "Shop must be active to create vouchers" }
+  if (!data.code.trim()) return { error: "Code is required" }
+  if (!data.title.trim()) return { error: "Title is required" }
+  if (data.discountValue <= 0) return { error: "Discount value must be positive" }
+  try {
+    await prisma.voucher.create({ data: { ...data, shopId: shop.id } })
+  } catch (e: unknown) {
+    if ((e as { code?: string })?.code === "P2002") return { error: "Voucher code already exists" }
+    return { error: "Failed to create voucher" }
+  }
+  revalidatePath("/seller/vouchers")
+  return {}
+}
+
+export async function updateSellerVoucher(id: string, data: {
+  title: string
+  discountType: "PERCENT" | "FIXED"
+  discountValue: number
+  minSpend: number
+  maxDiscount: number | null
+  expiresAt: Date
+  usageLimit: number | null
+  isActive: boolean
+}): Promise<{ error?: string }> {
+  const shop = await requireShopAccess("VOUCHERS")
+  if (!shop) return { error: "Unauthorized" }
+  const existing = await prisma.voucher.findUnique({ where: { id } })
+  if (!existing || existing.shopId !== shop.id) return { error: "Voucher not found" }
+  if (!data.title.trim()) return { error: "Title is required" }
+  if (data.discountValue <= 0) return { error: "Discount value must be positive" }
+  await prisma.voucher.update({ where: { id }, data })
+  revalidatePath("/seller/vouchers")
+  return {}
+}
+
+export async function deactivateSellerVoucher(id: string): Promise<{ error?: string }> {
+  const shop = await requireShopAccess("VOUCHERS")
+  if (!shop) return { error: "Unauthorized" }
+  const existing = await prisma.voucher.findUnique({ where: { id } })
+  if (!existing || existing.shopId !== shop.id) return { error: "Voucher not found" }
+  await prisma.voucher.update({ where: { id }, data: { isActive: false } })
+  revalidatePath("/seller/vouchers")
+  return {}
+}

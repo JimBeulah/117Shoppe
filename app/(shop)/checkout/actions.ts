@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
 import { activeFlashSaleItemInclude, effectivePrice } from "@/lib/data/flashSale"
-import { validateVoucherCode, type VoucherValidationResult } from "@/lib/data/voucher"
+import { validateVoucherCode, peekVoucherShopId, type VoucherValidationResult } from "@/lib/data/voucher"
 import { splitProportionally } from "@/lib/voucher"
 import { createNotification } from "@/lib/notifications/create"
 import { buildNewOrderCopy } from "@/lib/notifications/copy"
@@ -43,13 +43,24 @@ export async function applyVoucher(code: string): Promise<VoucherValidationResul
     include: {
       items: {
         include: {
-          product: { include: { flashSaleItems: activeFlashSaleItemInclude() } },
+          product: { include: { shop: true, flashSaleItems: activeFlashSaleItemInclude() } },
           variant: true,
         },
       },
     },
   })
   if (!cart || cart.items.length === 0) return { error: "Cart is empty" }
+
+  const targetShopId = await peekVoucherShopId(code)
+
+  if (targetShopId) {
+    const shopItems = cart.items.filter((item) => item.product.shop.id === targetShopId)
+    if (shopItems.length === 0) {
+      return { error: "This voucher is only valid for items from its shop" }
+    }
+    const shopSubtotal = shopItems.reduce((sum, item) => sum + effectivePrice(item.product, item.variant) * item.quantity, 0)
+    return validateVoucherCode(code, shopSubtotal, targetShopId)
+  }
 
   const subtotal = cart.items.reduce((sum, item) => {
     return sum + effectivePrice(item.product, item.variant) * item.quantity
@@ -117,15 +128,33 @@ export async function placeOrder(
   const cartSubtotal = itemsTotals.reduce((a, b) => a + b, 0)
 
   let voucherId: string | null = null
+  let voucherShopId: string | null = null
   let shopDiscounts = itemsTotals.map(() => 0)
 
   if (voucherCode) {
-    const result = await validateVoucherCode(voucherCode, cartSubtotal)
-    if (result.error || !result.voucher || result.discountAmount == null) {
-      return { error: result.error ?? "Invalid voucher code" }
+    const targetShopId = await peekVoucherShopId(voucherCode)
+
+    if (targetShopId) {
+      const groupIndex = groupEntries.findIndex(([shopId]) => shopId === targetShopId)
+      if (groupIndex === -1) {
+        return { error: "This voucher is only valid for items from its shop" }
+      }
+      const shopSubtotal = itemsTotals[groupIndex]
+      const result = await validateVoucherCode(voucherCode, shopSubtotal, targetShopId)
+      if (result.error || !result.voucher || result.discountAmount == null) {
+        return { error: result.error ?? "Invalid voucher code" }
+      }
+      voucherId = result.voucher.id
+      voucherShopId = targetShopId
+      shopDiscounts = itemsTotals.map((_, i) => (i === groupIndex ? result.discountAmount! : 0))
+    } else {
+      const result = await validateVoucherCode(voucherCode, cartSubtotal)
+      if (result.error || !result.voucher || result.discountAmount == null) {
+        return { error: result.error ?? "Invalid voucher code" }
+      }
+      voucherId = result.voucher.id
+      shopDiscounts = splitProportionally(result.discountAmount, itemsTotals)
     }
-    voucherId = result.voucher.id
-    shopDiscounts = splitProportionally(result.discountAmount, itemsTotals)
   }
 
   const shopIds = groupEntries.map(([shopId]) => shopId)
@@ -151,6 +180,7 @@ export async function placeOrder(
     const discountAmount = shopDiscounts[i]
     const shipping = resolvedShipping[i]
     const orderTotal = itemsTotal - discountAmount + shipping.price
+    const orderVoucherId = voucherShopId ? (shopId === voucherShopId ? voucherId : null) : voucherId
 
     let order
     try {
@@ -218,7 +248,7 @@ export async function placeOrder(
             shippingMethodId: shipping.methodId,
             shippingMethodName: `${shipping.name} (${shipping.carrier})`,
             discountAmount,
-            voucherId,
+            voucherId: orderVoucherId,
             status: paymentMethod === "COD" ? "PAID" : "PENDING",
             items: {
               create: items.map((item) => ({

@@ -205,6 +205,7 @@ model Shop {
 
   owner             User                 @relation(fields: [ownerId], references: [id])
   products          Product[]
+  vouchers          Voucher[]
   orders            Order[]
   reviewReplies     ReviewReply[]
   conversations     Conversation[]
@@ -224,6 +225,7 @@ enum StaffPermission {
   REVIEWS
   CHAT
   INVENTORY
+  VOUCHERS
 }
 
 model ShopStaff {
@@ -340,8 +342,12 @@ model Voucher {
   isActive      Boolean      @default(true)
   usageLimit    Int?
   createdAt     DateTime     @default(now())
+  shopId        String?
 
+  shop   Shop?   @relation(fields: [shopId], references: [id])
   orders Order[]
+
+  @@index([shopId])
 }
 
 // ─── Phase 2–3 Models ────────────────────────────────────────────────────────

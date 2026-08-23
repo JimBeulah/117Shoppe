@@ -55,6 +55,7 @@ export function VoucherInput({ applied, onApply, onRemove }: VoucherInputProps) 
               <p className="text-sm font-semibold text-text-primary">{applied.voucher.code}</p>
               <p className="text-xs text-text-secondary">
                 {applied.voucher.title} · -{formatPrice(applied.discountAmount)}
+                {applied.voucher.shopId && " · this shop only"}
               </p>
             </div>
             <button

@@ -8,6 +8,7 @@ import type { ShippingRateOption } from "@/lib/shipping/rates"
 interface OrderReviewSectionProps {
   groups: CartGroup[]
   discountAmount?: number
+  voucherShopId?: string | null
   shippingOptions: Record<string, ShippingRateOption[]>
   shippingLoading: boolean
   selectedMethods: Record<string, string>
@@ -17,6 +18,7 @@ interface OrderReviewSectionProps {
 export function OrderReviewSection({
   groups,
   discountAmount = 0,
+  voucherShopId = null,
   shippingOptions,
   shippingLoading,
   selectedMethods,
@@ -28,7 +30,9 @@ export function OrderReviewSection({
       return sum + price * item.quantity
     }, 0)
   )
-  const groupDiscounts = splitProportionally(discountAmount, subtotals)
+  const groupDiscounts = voucherShopId
+    ? groups.map((group) => (group.shopId === voucherShopId ? discountAmount : 0))
+    : splitProportionally(discountAmount, subtotals)
 
   return (
     <div className="space-y-4">

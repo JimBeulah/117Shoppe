@@ -51,6 +51,7 @@ export interface AppliedVoucher {
   discountType: 'PERCENT' | 'FIXED'
   discountValue: number
   maxDiscount: number | null
+  shopId: string | null
 }
 
 export interface CatalogFilters {

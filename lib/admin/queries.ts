@@ -340,7 +340,7 @@ export async function getAdminVouchers(
   search?: string | null
 ): Promise<{ vouchers: AdminVoucherRow[]; total: number; pageSize: number }> {
   await assertAdmin()
-  const where: any = {}
+  const where: any = { shopId: null }
   if (search) {
     where.OR = [
       { code: { contains: search, mode: "insensitive" } },

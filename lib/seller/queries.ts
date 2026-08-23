@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/data/user"
 import { reconcileEligibleCommissions } from "@/lib/payouts/reconcile"
 import { escalateExpiredReturnRequests } from "@/lib/orders/timeline"
 import { releaseExpiredReservations } from "@/lib/inventory/reservations"
-import type { DashboardStats } from "@/types/seller"
+import type { DashboardStats, SellerVoucherRow } from "@/types/seller"
 import type { ShopReviewWithProduct } from "@/types"
 import type { SellerBalance, SellerPayoutRow } from "@/types/payouts"
 
@@ -260,4 +260,30 @@ export async function getShopReviews(shopId: string): Promise<ShopReviewWithProd
       reply: { select: { comment: true } },
     },
   })
+}
+
+export async function getSellerVouchers(
+  shopId: string,
+  page: number,
+  search?: string | null
+): Promise<{ vouchers: SellerVoucherRow[]; total: number; pageSize: number }> {
+  const PAGE_SIZE = 20
+  const where: any = { shopId }
+  if (search) {
+    where.OR = [
+      { code: { contains: search, mode: "insensitive" } },
+      { title: { contains: search, mode: "insensitive" } },
+    ]
+  }
+  const [vouchers, total] = await Promise.all([
+    prisma.voucher.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      select: { id: true, code: true, title: true, discountType: true, discountValue: true, minSpend: true, maxDiscount: true, usageLimit: true, expiresAt: true, isActive: true },
+    }),
+    prisma.voucher.count({ where }),
+  ])
+  return { vouchers, total, pageSize: PAGE_SIZE }
 }

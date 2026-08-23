@@ -220,6 +220,16 @@ async function main() {
     await prisma.voucher.upsert({ where: { code: v.code }, update: {}, create: v })
   }
 
+  // ── Shop Vouchers (seller-scoped) ────────────────────────────────────────────
+  const shopVouchers = [
+    { code: 'TECHPRO15', title: 'TechPro Store — 15% Off', discountType: DiscountType.PERCENT, discountValue: 15, minSpend: 500, maxDiscount: 250, expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), shopId: shops[0].id },
+    { code: 'FASHION50', title: 'Fashion Hub — ₱50 Off', discountType: DiscountType.FIXED, discountValue: 50, minSpend: 300, expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), shopId: shops[1].id },
+  ]
+
+  for (const v of shopVouchers) {
+    await prisma.voucher.upsert({ where: { code: v.code }, update: {}, create: v })
+  }
+
   // ── Shipping ──────────────────────────────────────────────────────────────
   const standardMethod = await prisma.shippingMethod.upsert({
     where: { id: 'seed-shipping-standard' },

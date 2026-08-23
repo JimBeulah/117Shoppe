@@ -14,7 +14,7 @@ export default async function HomePage() {
   const [categories, banners, vouchers, flashSale, trendingProducts, discoverProducts] = await Promise.all([
     prisma.category.findMany({ where: { parentId: null }, orderBy: { displayOrder: "asc" } }),
     prisma.banner.findMany({ where: { isActive: true }, orderBy: { displayOrder: "asc" } }),
-    prisma.voucher.findMany({ where: { isActive: true, expiresAt: { gt: new Date() } }, orderBy: { expiresAt: "asc" }, take: 6 }),
+    prisma.voucher.findMany({ where: { isActive: true, shopId: null, expiresAt: { gt: new Date() } }, orderBy: { expiresAt: "asc" }, take: 6 }),
     getHomeFlashSaleSection(10),
     prisma.product.findMany({
       where: { isTrending: true, isActive: true, status: "APPROVED", shop: { isOnVacation: false } },

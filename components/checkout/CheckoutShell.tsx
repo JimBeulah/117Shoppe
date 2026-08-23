@@ -76,6 +76,7 @@ export function CheckoutShell({ addresses, groups }: CheckoutShellProps) {
         <OrderReviewSection
           groups={groups}
           discountAmount={applied?.discountAmount ?? 0}
+          voucherShopId={applied?.voucher.shopId ?? null}
           shippingOptions={shippingOptions}
           shippingLoading={shippingLoading}
           selectedMethods={selectedMethods}

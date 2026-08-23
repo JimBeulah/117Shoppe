@@ -11,6 +11,7 @@ const PERMISSION_OPTIONS: { value: StaffPermissionValue; label: string }[] = [
   { value: "REVIEWS", label: "Reviews" },
   { value: "CHAT", label: "Messages" },
   { value: "INVENTORY", label: "Inventory" },
+  { value: "VOUCHERS", label: "Vouchers" },
 ]
 
 interface Props {

@@ -81,11 +81,24 @@ export interface BrandItem {
   name: string
 }
 
-export type StaffPermissionValue = "PRODUCTS" | "ORDERS" | "REVIEWS" | "CHAT" | "INVENTORY"
+export type StaffPermissionValue = "PRODUCTS" | "ORDERS" | "REVIEWS" | "CHAT" | "INVENTORY" | "VOUCHERS"
 
 export interface StaffMember {
   id: string
   permissions: StaffPermissionValue[]
   createdAt: Date
   user: { id: string; name: string; email: string; avatar: string | null }
+}
+
+export interface SellerVoucherRow {
+  id: string
+  code: string
+  title: string
+  discountType: string
+  discountValue: number
+  minSpend: number
+  maxDiscount: number | null
+  usageLimit: number | null
+  expiresAt: Date
+  isActive: boolean
 }
