@@ -7,6 +7,7 @@ const MESSAGE_SELECT = {
   receiverId: true,
   conversationId: true,
   content: true,
+  imageUrl: true,
   isRead: true,
   createdAt: true,
 } as const
@@ -74,6 +75,7 @@ interface ConversationForItem {
     receiverId: string
     conversationId: string
     content: string
+    imageUrl: string | null
     isRead: boolean
     createdAt: Date
   }>
@@ -97,6 +99,7 @@ export function toConversationItem(
           receiverId: last.receiverId,
           conversationId: last.conversationId,
           content: last.content,
+          imageUrl: last.imageUrl,
           isRead: last.isRead,
           createdAt: last.createdAt.toISOString(),
         }

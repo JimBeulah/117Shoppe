@@ -4,6 +4,7 @@ export interface ChatMessage {
   receiverId: string
   conversationId: string
   content: string
+  imageUrl: string | null
   isRead: boolean
   createdAt: string // ISO string
 }

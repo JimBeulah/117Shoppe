@@ -45,6 +45,16 @@ export const ourFileRouter = {
       return { url: file.url }
     }),
 
+  chatImage: f({ image: { maxFileSize: "4MB", maxFileCount: 1 } })
+    .middleware(async () => {
+      const { userId } = await auth()
+      if (!userId) throw new UploadThingError("Unauthorized")
+      return { userId }
+    })
+    .onUploadComplete(async ({ file }) => {
+      return { url: file.url }
+    }),
+
   reviewMedia: f({
     image: { maxFileSize: "4MB", maxFileCount: 5 },
     video: { maxFileSize: "16MB", maxFileCount: 2 },

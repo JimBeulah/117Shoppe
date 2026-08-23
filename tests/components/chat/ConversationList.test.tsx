@@ -19,10 +19,23 @@ const item: ConversationItem = {
     receiverId: 'u2',
     conversationId: 'conv-1',
     content: 'Hello there',
+    imageUrl: null,
     isRead: false,
     createdAt: new Date().toISOString(),
   },
   hasUnread: true,
+}
+
+const imageOnlyItem: ConversationItem = {
+  ...item,
+  id: 'conv-2',
+  lastMessage: {
+    ...item.lastMessage!,
+    id: 'm2',
+    conversationId: 'conv-2',
+    content: '',
+    imageUrl: 'https://example.com/photo.png',
+  },
 }
 
 describe('ConversationList', () => {
@@ -44,5 +57,10 @@ describe('ConversationList', () => {
   it('renders empty state when no conversations', () => {
     render(<ConversationList conversations={[]} currentUserId="u2" />)
     expect(screen.getByText(/no conversations/i)).toBeDefined()
+  })
+
+  it('shows a photo preview for an image-only last message', () => {
+    render(<ConversationList conversations={[imageOnlyItem]} currentUserId="u2" />)
+    expect(screen.getByText('📷 Photo')).toBeDefined()
   })
 })

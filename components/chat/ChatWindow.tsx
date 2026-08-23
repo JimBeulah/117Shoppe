@@ -16,6 +16,7 @@ interface Props {
 export function ChatWindow({ conversationId, currentUserId, displayName }: Props) {
   const { socket, connected } = useSocket()
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [otherUserTyping, setOtherUserTyping] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // Load initial messages from API
@@ -54,11 +55,25 @@ export function ChatWindow({ conversationId, currentUserId, displayName }: Props
       )
     }
 
+    function handleUserTyping({ conversationId: id, userId }: { conversationId: string; userId: string }) {
+      if (id !== conversationId || userId === currentUserId) return
+      setOtherUserTyping(true)
+    }
+
+    function handleUserStoppedTyping({ conversationId: id, userId }: { conversationId: string; userId: string }) {
+      if (id !== conversationId || userId === currentUserId) return
+      setOtherUserTyping(false)
+    }
+
     s.on('new-message', handleNewMessage)
     s.on('message-read', handleMessageRead)
+    s.on('user-typing', handleUserTyping)
+    s.on('user-stopped-typing', handleUserStoppedTyping)
     return () => {
       s.off('new-message', handleNewMessage)
       s.off('message-read', handleMessageRead)
+      s.off('user-typing', handleUserTyping)
+      s.off('user-stopped-typing', handleUserStoppedTyping)
     }
   }, [socket, conversationId, currentUserId])
 
@@ -67,13 +82,25 @@ export function ChatWindow({ conversationId, currentUserId, displayName }: Props
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  useEffect(() => {
+    setOtherUserTyping(false)
+  }, [conversationId])
+
   const handleSend = useCallback(
-    (content: string) => {
+    (content: string, imageUrl?: string | null) => {
       if (!socket) return
-      socket.emit('send-message', { conversationId, content })
+      socket.emit('send-message', { conversationId, content, imageUrl })
     },
     [socket, conversationId]
   )
+
+  const handleTypingStart = useCallback(() => {
+    socket?.emit('typing-start', { conversationId })
+  }, [socket, conversationId])
+
+  const handleTypingStop = useCallback(() => {
+    socket?.emit('typing-stop', { conversationId })
+  }, [socket, conversationId])
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -105,8 +132,17 @@ export function ChatWindow({ conversationId, currentUserId, displayName }: Props
         <div ref={bottomRef} />
       </div>
 
+      {otherUserTyping && (
+        <p className="px-4 py-1 text-xs text-text-secondary italic">{displayName} is typing…</p>
+      )}
+
       {/* Input */}
-      <ChatInput onSend={handleSend} disabled={!connected} />
+      <ChatInput
+        onSend={handleSend}
+        onTypingStart={handleTypingStart}
+        onTypingStop={handleTypingStop}
+        disabled={!connected}
+      />
     </div>
   )
 }

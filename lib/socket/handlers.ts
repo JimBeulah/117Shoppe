@@ -54,6 +54,9 @@ export function setupSocketServer(io: Server) {
     const initialNotifCount = await getUnreadNotificationCount(userId)
     socket.emit('unread-notification-count', { count: initialNotifCount })
 
+    // Typing indicator auto-timeout guards, scoped per-connection so they're GC'd on disconnect
+    const typingTimeouts = new Map<string, NodeJS.Timeout>()
+
     // Join a conversation room (called when user opens a chat)
     socket.on('join-room', async ({ conversationId }: { conversationId: string }) => {
       const conversation = await prisma.conversation.findUnique({
@@ -72,8 +75,9 @@ export function setupSocketServer(io: Server) {
     // Send a message
     socket.on(
       'send-message',
-      async ({ conversationId, content }: { conversationId: string; content: string }) => {
-        if (!content?.trim()) return
+      async ({ conversationId, content, imageUrl }: { conversationId: string; content: string; imageUrl?: string | null }) => {
+        const trimmed = content?.trim() ?? ''
+        if (!trimmed && !imageUrl) return
 
         const conversation = await prisma.conversation.findUnique({
           where: { id: conversationId },
@@ -88,8 +92,8 @@ export function setupSocketServer(io: Server) {
         const receiverId = isBuyer ? conversation.shop.ownerId : conversation.buyerId
 
         const message = await prisma.message.create({
-          data: { senderId: userId, receiverId, conversationId, content: content.trim() },
-          select: { id: true, senderId: true, receiverId: true, conversationId: true, content: true, isRead: true, createdAt: true },
+          data: { senderId: userId, receiverId, conversationId, content: trimmed, imageUrl: imageUrl ?? null },
+          select: { id: true, senderId: true, receiverId: true, conversationId: true, content: true, imageUrl: true, isRead: true, createdAt: true },
         })
 
         await prisma.conversation.update({
@@ -122,6 +126,28 @@ export function setupSocketServer(io: Server) {
 
       const count = await getUnreadCount(userId)
       io.to(`user:${userId}`).emit('unread-count', { count })
+    })
+
+    // Typing indicators
+    socket.on('typing-start', ({ conversationId }: { conversationId: string }) => {
+      const key = `${conversationId}:${userId}`
+      socket.to(conversationId).emit('user-typing', { conversationId, userId })
+
+      clearTimeout(typingTimeouts.get(key))
+      typingTimeouts.set(
+        key,
+        setTimeout(() => {
+          socket.to(conversationId).emit('user-stopped-typing', { conversationId, userId })
+          typingTimeouts.delete(key)
+        }, 5000)
+      )
+    })
+
+    socket.on('typing-stop', ({ conversationId }: { conversationId: string }) => {
+      const key = `${conversationId}:${userId}`
+      clearTimeout(typingTimeouts.get(key))
+      typingTimeouts.delete(key)
+      socket.to(conversationId).emit('user-stopped-typing', { conversationId, userId })
     })
   })
 }

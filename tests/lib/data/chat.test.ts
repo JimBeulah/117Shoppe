@@ -27,6 +27,7 @@ const mockMessage = {
   senderId: 'u1',
   receiverId: 'u2',
   content: 'Hello',
+  imageUrl: null,
   isRead: false,
   createdAt: new Date('2026-06-30T10:00:00Z'),
 }

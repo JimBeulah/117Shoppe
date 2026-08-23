@@ -170,19 +170,19 @@ model User {
   wishlist                    Wishlist[]
   notifications               Notification[]
   notificationPreferences     NotificationPreference[]
-  sentMessages                Message[]            @relation("SentMessages")
-  receivedMessages            Message[]            @relation("ReceivedMessages")
+  sentMessages                Message[]                @relation("SentMessages")
+  receivedMessages            Message[]                @relation("ReceivedMessages")
   searchHistory               SearchHistory[]
   coinLogs                    Coin[]
   shopFollows                 ShopFollow[]
-  buyerConversations          Conversation[]       @relation("BuyerConversations")
+  buyerConversations          Conversation[]           @relation("BuyerConversations")
   refundsInitiated            Refund[]
   auditLogs                   AuditLog[]
-  staffMemberships            ShopStaff[]          @relation("StaffMemberships")
-  staffInvitesSent            ShopStaff[]          @relation("StaffInvitesSent")
-  returnRequestsFiled         ReturnRequest[]      @relation("ReturnRequestsFiled")
-  returnRequestsSellerDecided ReturnRequest[]      @relation("ReturnRequestsSellerDecided")
-  returnRequestsAdminDecided  ReturnRequest[]      @relation("ReturnRequestsAdminDecided")
+  staffMemberships            ShopStaff[]              @relation("StaffMemberships")
+  staffInvitesSent            ShopStaff[]              @relation("StaffInvitesSent")
+  returnRequestsFiled         ReturnRequest[]          @relation("ReturnRequestsFiled")
+  returnRequestsSellerDecided ReturnRequest[]          @relation("ReturnRequestsSellerDecided")
+  returnRequestsAdminDecided  ReturnRequest[]          @relation("ReturnRequestsAdminDecided")
   timelineEventsActed         OrderTimelineEvent[]
   stockMovementsActed         StockMovement[]
 }
@@ -720,6 +720,7 @@ model Message {
   receiverId     String
   conversationId String
   content        String
+  imageUrl       String?
   isRead         Boolean  @default(false)
   createdAt      DateTime @default(now())
 

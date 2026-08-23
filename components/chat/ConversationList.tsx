@@ -110,7 +110,11 @@ export function ConversationList({ conversations: initial, activeId, currentUser
               <RelativeTime iso={c.lastMessageAt} />
             </div>
             <p className="text-xs text-text-secondary truncate mt-0.5">
-              {c.lastMessage?.content ?? 'No messages yet'}
+              {c.lastMessage
+                ? c.lastMessage.imageUrl
+                  ? `📷 Photo${c.lastMessage.content ? `: ${c.lastMessage.content}` : ''}`
+                  : c.lastMessage.content
+                : 'No messages yet'}
             </p>
           </div>
           {c.hasUnread && (

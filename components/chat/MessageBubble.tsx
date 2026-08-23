@@ -19,7 +19,15 @@ export function MessageBubble({ message, isOwn }: Props) {
             : 'bg-white border border-border text-text-primary rounded-bl-none'
         }`}
       >
-        <p>{message.content}</p>
+        {message.imageUrl && (
+          <img
+            src={message.imageUrl}
+            alt="Sent image"
+            className="max-w-[240px] max-h-[240px] rounded-md mb-1 cursor-pointer object-cover"
+            onClick={() => window.open(message.imageUrl!, '_blank')}
+          />
+        )}
+        {message.content && <p>{message.content}</p>}
         <p className={`text-[10px] mt-0.5 ${isOwn ? 'text-white/70 text-right' : 'text-text-secondary'}`}>
           {formatTime(message.createdAt)}
           {isOwn && <span className="ml-1">{message.isRead ? '✓✓' : '✓'}</span>}
