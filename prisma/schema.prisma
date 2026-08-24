@@ -226,6 +226,7 @@ enum StaffPermission {
   CHAT
   INVENTORY
   VOUCHERS
+  REPORTS
 }
 
 model ShopStaff {

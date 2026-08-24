@@ -81,7 +81,7 @@ export interface BrandItem {
   name: string
 }
 
-export type StaffPermissionValue = "PRODUCTS" | "ORDERS" | "REVIEWS" | "CHAT" | "INVENTORY" | "VOUCHERS"
+export type StaffPermissionValue = "PRODUCTS" | "ORDERS" | "REVIEWS" | "CHAT" | "INVENTORY" | "VOUCHERS" | "REPORTS"
 
 export interface StaffMember {
   id: string
@@ -101,4 +101,25 @@ export interface SellerVoucherRow {
   usageLimit: number | null
   expiresAt: Date
   isActive: boolean
+}
+
+export interface DailySales {
+  date: string
+  revenue: number
+  orders: number
+}
+
+export interface ReportTopProduct {
+  id: string
+  name: string
+  images: string[]
+  sold: number
+  revenue: number
+}
+
+export interface SellerSalesReport {
+  daily: DailySales[]
+  totalRevenue: number
+  totalOrders: number
+  topProducts: ReportTopProduct[]
 }
