@@ -1,5 +1,6 @@
 import { getSalesReport } from "@/lib/admin/reports"
 import { formatPrice } from "@/lib/utils"
+import DailyRevenueChart from "@/components/admin/DailyRevenueChart"
 
 export const metadata = { title: "Admin — Reports" }
 
@@ -23,7 +24,6 @@ export default async function AdminReportsPage({ searchParams }: Props) {
   to.setHours(23, 59, 59, 999)
 
   const report = await getSalesReport(from, to)
-  const maxRevenue = Math.max(1, ...report.daily.map((d) => d.revenue))
 
   return (
     <div className="space-y-6">
@@ -65,25 +65,7 @@ export default async function AdminReportsPage({ searchParams }: Props) {
 
       <div className="bg-white rounded-lg border border-border-default p-5">
         <h2 className="font-semibold text-sm text-text-primary mb-4">Daily Revenue</h2>
-        {report.daily.length === 0 ? (
-          <p className="text-sm text-text-secondary">No revenue in this range.</p>
-        ) : (
-          <div className="space-y-2">
-            {report.daily.map((d) => (
-              <div key={d.date} className="flex items-center gap-3 text-xs">
-                <span className="w-20 text-text-secondary shrink-0">{d.date}</span>
-                <div className="flex-1 bg-bg-page rounded h-4 overflow-hidden">
-                  <div
-                    className="bg-brand-600 h-full rounded"
-                    style={{ width: `${(d.revenue / maxRevenue) * 100}%` }}
-                  />
-                </div>
-                <span className="w-24 text-right text-text-primary shrink-0">{formatPrice(d.revenue)}</span>
-                <span className="w-16 text-right text-text-secondary shrink-0">{d.orders} ord.</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <DailyRevenueChart data={report.daily} />
       </div>
 
       <div className="bg-white rounded-lg border border-border-default overflow-hidden">
