@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
+import { logAnalyticsEvent } from "@/lib/analytics/events"
+import { getOrCreateAnonSessionId } from "@/lib/analytics/session"
 
 export async function addToCart(
   productId: string,
@@ -16,7 +18,7 @@ export async function addToCart(
     where: { id: productId },
     select: {
       stock: true,
-      shop: { select: { isOnVacation: true } },
+      shop: { select: { id: true, isOnVacation: true } },
       variants: variantId ? { where: { id: variantId }, select: { id: true, stock: true } } : false,
     },
   })
@@ -58,6 +60,19 @@ export async function addToCart(
     await prisma.cartItem.create({
       data: { cartId: cart.id, productId, variantId: variantId ?? null, quantity },
     })
+  }
+
+  try {
+    await logAnalyticsEvent(prisma, {
+      type: "ADD_TO_CART",
+      productId,
+      shopId: product.shop.id,
+      userId: user.id,
+      quantity,
+      sessionId: await getOrCreateAnonSessionId(),
+    })
+  } catch {
+    // Analytics must never block the cart mutation.
   }
 
   revalidatePath("/cart")

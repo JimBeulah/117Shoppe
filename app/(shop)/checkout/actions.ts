@@ -12,6 +12,7 @@ import { createPaymongoLink } from "@/lib/payments/paymongo"
 import { getShippingOptionsForShops, type ShippingRateOption } from "@/lib/shipping/rates"
 import { logOrderEvent } from "@/lib/orders/timeline"
 import { logStockMovement } from "@/lib/inventory/stock"
+import { logAnalyticsEvent } from "@/lib/analytics/events"
 import { createReservation, releaseExpiredReservations } from "@/lib/inventory/reservations"
 
 export async function getShippingOptionsForAddress(
@@ -321,6 +322,21 @@ export async function placeOrder(
 
     const shop = items[0].product.shop
     await createNotification({ userId: shop.ownerId, ...buildNewOrderCopy(order.id, user.name) })
+
+    try {
+      for (const item of items) {
+        await logAnalyticsEvent(prisma, {
+          type: "PURCHASE",
+          productId: item.productId,
+          shopId,
+          userId: user.id,
+          orderId: order.id,
+          quantity: item.quantity,
+        })
+      }
+    } catch {
+      // Analytics must never affect a placed order.
+    }
   }
 
   // Clear cart

@@ -4,6 +4,7 @@ import { getProductBySlug } from "@/lib/data/catalog"
 import { Breadcrumb } from "@/components/catalog/Breadcrumb"
 import { ImageGallery } from "@/components/product/ImageGallery"
 import { ProductInteractivePanel } from "@/components/product/ProductInteractivePanel"
+import { ProductViewTracker } from "@/components/product/ProductViewTracker"
 import { ShopPanel } from "@/components/product/ShopPanel"
 import { ReviewsSection } from "@/components/product/ReviewsSection"
 import { formatSold } from "@/lib/utils"
@@ -52,6 +53,7 @@ export default async function ProductPage({ params }: Props) {
 
   return (
     <div className="bg-bg-page min-h-screen">
+      <ProductViewTracker productId={product.id} shopId={product.shop.id} />
       <div className="max-w-7xl mx-auto px-4 py-4 space-y-3">
         <div className="bg-bg-surface px-2">
           <Breadcrumb crumbs={crumbs} />

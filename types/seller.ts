@@ -123,3 +123,48 @@ export interface SellerSalesReport {
   totalOrders: number
   topProducts: ReportTopProduct[]
 }
+
+export interface CustomerRow {
+  id: string
+  name: string
+  email: string
+  orders: number
+  totalSpent: number
+}
+
+export interface SellerCustomerReport {
+  topCustomers: CustomerRow[]
+  newCustomers: number
+  returningCustomers: number
+  totalCustomers: number
+}
+
+export interface ConversionProductRow {
+  id: string
+  name: string
+  views: number
+  addsToCart: number
+  purchases: number
+  conversionRate: number
+}
+
+export interface SellerConversionReport {
+  views: number
+  addsToCart: number
+  purchases: number
+  viewToCartRate: number
+  cartToPurchaseRate: number
+  overallConversionRate: number
+  topProducts: ConversionProductRow[]
+}
+
+export interface ProductReportRow {
+  id: string
+  name: string
+  images: string[]
+  sold: number
+  revenue: number
+  currentStock: number
+  restockedUnits: number
+  cancelledUnits: number
+}

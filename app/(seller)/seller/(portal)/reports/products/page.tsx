@@ -1,67 +1,40 @@
 import { redirect } from "next/navigation"
-import { getCurrentUser } from "@/lib/data/user"
-import { getShopAccess, canAccess } from "@/lib/seller/access"
-import { getSellerSalesReport } from "@/lib/seller/reports"
+import { requireShopAccess } from "@/lib/seller/access"
+import { getSellerProductReport } from "@/lib/seller/reports"
 import { formatPrice } from "@/lib/utils"
-import { RevenueChart } from "@/components/reports/RevenueChart"
-import { StatCard } from "@/components/reports/StatCard"
 import { DateRangeForm } from "@/components/reports/DateRangeForm"
 import { ReportTable } from "@/components/reports/ReportTable"
 import { resolveDateRange, toDateInputValue } from "@/lib/reports/dates"
 
-export const metadata = { title: "Seller — Reports" }
+export const metadata = { title: "Seller — Product Reports" }
 
 interface Props {
   searchParams: Promise<{ from?: string; to?: string }>
 }
 
-export default async function SellerReportsPage({ searchParams }: Props) {
+export default async function SellerProductReportsPage({ searchParams }: Props) {
   const { from: fromStr, to: toStr } = await searchParams
 
-  const user = await getCurrentUser()
-  if (!user) redirect("/sign-in")
-
-  const access = await getShopAccess()
-  if (!access) redirect("/seller/onboarding")
-  if (!canAccess(access, "REPORTS")) redirect("/seller/dashboard")
-  const shop = access.shop
+  const shop = await requireShopAccess("REPORTS")
+  if (!shop) redirect("/seller/dashboard")
 
   const { from, to } = resolveDateRange(fromStr, toStr)
 
-  const report = await getSellerSalesReport(shop.id, from, to)
-
+  const products = await getSellerProductReport(shop.id, from, to)
   const exportQuery = `from=${toDateInputValue(from)}&to=${toDateInputValue(to)}`
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-xl font-bold text-text-primary">Reports</h1>
+        <h1 className="text-xl font-bold text-text-primary">Product Reports</h1>
         <DateRangeForm from={from} to={to} />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <StatCard label="Revenue" value={formatPrice(report.totalRevenue)} />
-        <StatCard label="Orders" value={String(report.totalOrders)} />
-      </div>
-
-      <div className="bg-white rounded-lg border border-border-default p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-sm text-text-primary">Daily Revenue</h2>
-          <a
-            href={`/api/seller/reports/export?type=daily&${exportQuery}`}
-            className="text-xs px-3 py-1.5 rounded border border-border-default text-text-secondary hover:bg-brand-50 hover:text-text-primary"
-          >
-            Download CSV
-          </a>
-        </div>
-        <RevenueChart data={report.daily} />
       </div>
 
       <div className="bg-white rounded-lg border border-border-default overflow-hidden">
         <div className="flex items-center justify-between p-5 pb-0">
-          <h2 className="font-semibold text-sm text-text-primary">Top Products</h2>
+          <h2 className="font-semibold text-sm text-text-primary">Product Performance</h2>
           <a
-            href={`/api/seller/reports/export?type=products&${exportQuery}`}
+            href={`/api/seller/reports/export?type=product-detail&${exportQuery}`}
             className="text-xs px-3 py-1.5 rounded border border-border-default text-text-secondary hover:bg-brand-50 hover:text-text-primary"
           >
             Download CSV
@@ -70,7 +43,7 @@ export default async function SellerReportsPage({ searchParams }: Props) {
         <ReportTable
           rowKey={(p) => p.id}
           emptyMessage="No sales in this range."
-          rows={report.topProducts}
+          rows={products}
           columns={[
             {
               key: "product",
@@ -92,6 +65,9 @@ export default async function SellerReportsPage({ searchParams }: Props) {
             },
             { key: "sold", label: "Units Sold", align: "right", render: (p) => p.sold },
             { key: "revenue", label: "Revenue", align: "right", render: (p) => formatPrice(p.revenue) },
+            { key: "stock", label: "Current Stock", align: "right", render: (p) => p.currentStock },
+            { key: "restocked", label: "Restocked", align: "right", render: (p) => p.restockedUnits },
+            { key: "cancelled", label: "Cancelled", align: "right", render: (p) => p.cancelledUnits },
           ]}
         />
       </div>

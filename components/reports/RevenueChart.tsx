@@ -7,7 +7,7 @@ interface Props {
   data: { date: string; revenue: number; orders: number }[]
 }
 
-export default function DailyRevenueChart({ data }: Props) {
+export function RevenueChart({ data }: Props) {
   if (data.length === 0) {
     return <p className="text-sm text-text-secondary">No revenue in this range.</p>
   }
