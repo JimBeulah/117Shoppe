@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import { getAdminBanners } from "@/lib/admin/queries"
 import { createBanner, toggleBanner, deleteBanner, updateBanner } from "@/lib/admin/actions"
 import ConfirmButton from "@/components/admin/ConfirmButton"
@@ -35,8 +36,7 @@ export default async function AdminBannersPage({ searchParams }: Props) {
             {banners.map((banner) => (
               <tr key={banner.id} className={`hover:bg-brand-50 transition-colors ${editing?.id === banner.id ? "bg-brand-50" : ""}`}>
                 <td className="px-4 py-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={banner.imageUrl} alt={banner.title ?? ""} className="h-12 w-20 object-cover rounded border border-border-default" />
+                  <Image src={banner.imageUrl} alt={banner.title ?? ""} width={80} height={48} unoptimized className="h-12 w-20 object-cover rounded border border-border-default" />
                 </td>
                 <td className="px-4 py-3 text-text-primary">{banner.title ?? "—"}</td>
                 <td className="px-4 py-3 text-text-secondary text-xs truncate max-w-[160px]">{banner.linkUrl ?? "—"}</td>

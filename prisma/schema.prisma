@@ -1,10 +1,12 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../lib/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../lib/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [pg_trgm]
 }
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
@@ -306,6 +308,12 @@ model Product {
   stockMovements    StockMovement[]
   stockReservations StockReservation[]
   analyticsEvents   AnalyticsEvent[]
+
+  @@index([status, isActive, categoryId])
+  @@index([status, isActive, shopId])
+  @@index([status, isActive, sold])
+  @@index([status, isActive, createdAt])
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "product_name_trgm_idx")
 }
 
 model ProductVariant {
@@ -408,6 +416,10 @@ model Order {
   stockMovements    StockMovement[]
   stockReservations StockReservation[]
   analyticsEvents   AnalyticsEvent[]
+
+  @@index([userId])
+  @@index([shopId, status])
+  @@index([status, createdAt])
 }
 
 model OrderItem {
@@ -644,6 +656,9 @@ model Review {
   product Product      @relation(fields: [productId], references: [id])
   reply   ReviewReply?
   votes   ReviewVote[]
+
+  @@index([productId])
+  @@index([userId])
 }
 
 model ReviewVote {
@@ -738,6 +753,9 @@ model Message {
   sender       User         @relation("SentMessages", fields: [senderId], references: [id])
   receiver     User         @relation("ReceivedMessages", fields: [receiverId], references: [id])
   conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId])
+  @@index([receiverId, isRead])
 }
 
 model Conversation {
@@ -751,6 +769,7 @@ model Conversation {
   messages Message[]
 
   @@unique([buyerId, shopId])
+  @@index([shopId])
 }
 
 model ShopFollow {

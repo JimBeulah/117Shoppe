@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db"
 import { assertAdmin } from "@/lib/admin/actions"
 import { buildCsv } from "@/lib/reports/csv"
+import { Prisma } from "@/lib/generated/prisma/client"
 
 export interface DailySales {
   date: string
@@ -80,52 +81,54 @@ export interface ProductReportRow {
 
 const REVENUE_STATUSES = ["PAID", "SHIPPED", "DELIVERED"] as const
 
+/**
+ * Top products by units sold in a date range, aggregated in SQL (SUM of
+ * price*quantity can't be expressed via Prisma's groupBy _sum, which only
+ * sums a single column) rather than pulling every order-item row into JS.
+ */
+async function getTopOrderItemsByRevenue(
+  from: Date,
+  to: Date,
+  limit: number
+): Promise<{ productId: string; sold: number; revenue: number }[]> {
+  const rows = await prisma.$queryRaw<{ productId: string; sold: bigint; revenue: number }[]>(Prisma.sql`
+    SELECT oi."productId" AS "productId", SUM(oi.quantity) AS sold, SUM(oi.price * oi.quantity) AS revenue
+    FROM "OrderItem" oi
+    JOIN "Order" o ON o.id = oi."orderId"
+    WHERE o."createdAt" >= ${from} AND o."createdAt" <= ${to}
+      AND o.status IN ('PAID', 'SHIPPED', 'DELIVERED')
+    GROUP BY oi."productId"
+    ORDER BY sold DESC
+    LIMIT ${limit}
+  `)
+  return rows.map((r) => ({ productId: r.productId, sold: Number(r.sold), revenue: Number(r.revenue) }))
+}
+
 export async function getSalesReport(from: Date, to: Date): Promise<SalesReport> {
   await assertAdmin()
 
-  const orders = await prisma.order.findMany({
-    where: {
-      createdAt: { gte: from, lte: to },
-      status: { in: [...REVENUE_STATUSES] },
-    },
-    select: { id: true, total: true, createdAt: true },
-  })
+  const [dailyRows, totals, topItems] = await Promise.all([
+    prisma.$queryRaw<{ day: Date; revenue: number; orders: bigint }[]>(Prisma.sql`
+      SELECT DATE_TRUNC('day', "createdAt") AS day, SUM("total") AS revenue, COUNT(*) AS orders
+      FROM "Order"
+      WHERE "createdAt" >= ${from} AND "createdAt" <= ${to}
+        AND status IN ('PAID', 'SHIPPED', 'DELIVERED')
+      GROUP BY day
+      ORDER BY day
+    `),
+    prisma.order.aggregate({
+      where: { createdAt: { gte: from, lte: to }, status: { in: [...REVENUE_STATUSES] } },
+      _sum: { total: true },
+      _count: { _all: true },
+    }),
+    getTopOrderItemsByRevenue(from, to, 10),
+  ])
 
-  const dailyMap = new Map<string, DailySales>()
-  for (const order of orders) {
-    const key = order.createdAt.toISOString().slice(0, 10)
-    const entry = dailyMap.get(key) ?? { date: key, revenue: 0, orders: 0 }
-    entry.revenue += order.total
-    entry.orders += 1
-    dailyMap.set(key, entry)
-  }
-  const daily = Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date))
-
-  const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0)
-  const totalOrders = orders.length
-
-  const orderItems = await prisma.orderItem.findMany({
-    where: {
-      order: {
-        createdAt: { gte: from, lte: to },
-        status: { in: [...REVENUE_STATUSES] },
-      },
-    },
-    select: { productId: true, quantity: true, price: true },
-  })
-
-  const itemMap = new Map<string, { sold: number; revenue: number }>()
-  for (const item of orderItems) {
-    const entry = itemMap.get(item.productId) ?? { sold: 0, revenue: 0 }
-    entry.sold += item.quantity
-    entry.revenue += item.price * item.quantity
-    itemMap.set(item.productId, entry)
-  }
-
-  const topItems = Array.from(itemMap.entries())
-    .map(([productId, v]) => ({ productId, ...v }))
-    .sort((a, b) => b.sold - a.sold)
-    .slice(0, 10)
+  const daily: DailySales[] = dailyRows.map((d) => ({
+    date: d.day.toISOString().slice(0, 10),
+    revenue: Number(d.revenue),
+    orders: Number(d.orders),
+  }))
 
   const products = await prisma.product.findMany({
     where: { id: { in: topItems.map((i) => i.productId) } },
@@ -141,7 +144,12 @@ export async function getSalesReport(from: Date, to: Date): Promise<SalesReport>
     })
     .filter((p): p is TopProduct => p !== null)
 
-  return { daily, totalRevenue, totalOrders, topProducts }
+  return {
+    daily,
+    totalRevenue: totals._sum.total ?? 0,
+    totalOrders: totals._count._all,
+    topProducts,
+  }
 }
 
 export async function getCustomerReport(from: Date, to: Date): Promise<CustomerReport> {
@@ -194,29 +202,7 @@ export async function getCustomerReport(from: Date, to: Date): Promise<CustomerR
 export async function getProductReport(from: Date, to: Date): Promise<ProductReportRow[]> {
   await assertAdmin()
 
-  const orderItems = await prisma.orderItem.findMany({
-    where: {
-      order: {
-        createdAt: { gte: from, lte: to },
-        status: { in: [...REVENUE_STATUSES] },
-      },
-    },
-    select: { productId: true, quantity: true, price: true },
-  })
-
-  const itemMap = new Map<string, { sold: number; revenue: number }>()
-  for (const item of orderItems) {
-    const entry = itemMap.get(item.productId) ?? { sold: 0, revenue: 0 }
-    entry.sold += item.quantity
-    entry.revenue += item.price * item.quantity
-    itemMap.set(item.productId, entry)
-  }
-
-  const topItems = Array.from(itemMap.entries())
-    .map(([productId, v]) => ({ productId, ...v }))
-    .sort((a, b) => b.sold - a.sold)
-    .slice(0, 50)
-
+  const topItems = await getTopOrderItemsByRevenue(from, to, 50)
   const productIds = topItems.map((i) => i.productId)
 
   const [products, stockMovements] = await Promise.all([

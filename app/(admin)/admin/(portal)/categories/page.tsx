@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import { getAdminCategories } from "@/lib/admin/queries"
 import { createCategory, updateCategory, deleteCategory } from "@/lib/admin/actions"
 import ConfirmButton from "@/components/admin/ConfirmButton"
@@ -41,7 +42,7 @@ export default async function AdminCategoriesPage({
                 <td className="px-4 py-3 text-text-secondary">{cat.parent?.name ?? "—"}</td>
                 <td className="px-4 py-3">
                   {cat.imageUrl ? (
-                    <img src={cat.imageUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-border-default" />
+                    <Image src={cat.imageUrl} alt="" width={32} height={32} unoptimized className="w-8 h-8 rounded-full object-cover border border-border-default" />
                   ) : (
                     <span className="text-text-secondary">—</span>
                   )}

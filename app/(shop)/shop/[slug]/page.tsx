@@ -1,9 +1,9 @@
+import { Suspense } from "react"
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { getShopBySlug, getShopProducts, parseCatalogFilters } from "@/lib/data/catalog"
-import { getCurrentUser } from "@/lib/data/user"
-import { prisma } from "@/lib/db"
 import { ShopHeader } from "@/components/shop/ShopHeader"
+import { ShopFollowSlot } from "@/components/shop/ShopFollowSlot"
 import { SortBar } from "@/components/catalog/SortBar"
 import { FilterSidebar } from "@/components/catalog/FilterSidebar"
 import { ProductGrid } from "@/components/catalog/ProductGrid"
@@ -34,31 +34,21 @@ export default async function ShopPage({ params, searchParams }: Props) {
   const sp = await searchParams
   const filters = parseCatalogFilters(sp)
 
-  const [shop, user] = await Promise.all([
-    getShopBySlug(slug),
-    getCurrentUser(),
-  ])
-
+  const shop = await getShopBySlug(slug)
   if (!shop) notFound()
 
-  const [result, shopFollow] = await Promise.all([
-    getShopProducts(shop.id, filters),
-    user
-      ? prisma.shopFollow.findUnique({
-          where: { userId_shopId: { userId: user.id, shopId: shop.id } },
-        })
-      : Promise.resolve(null),
-  ])
-
-  const initialFollowing = shopFollow !== null
+  const result = await getShopProducts(shop.id, filters)
 
   return (
     <div className="bg-bg-page min-h-screen">
       <div className="max-w-7xl mx-auto px-4 py-4">
         <ShopHeader
           shop={shop}
-          initialFollowing={initialFollowing}
-          isSignedIn={user !== null}
+          followSlot={
+            <Suspense fallback={<div className="h-8 w-32" />}>
+              <ShopFollowSlot shopId={shop.id} shopSlug={shop.slug} initialCount={shop.followersCount} />
+            </Suspense>
+          }
         />
 
         <SortBar

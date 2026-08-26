@@ -1,14 +1,13 @@
+import type { ReactNode } from "react"
 import Image from "next/image"
-import { FollowButton } from "./FollowButton"
 import type { ShopDetail } from "@/types"
 
 interface Props {
   shop: ShopDetail
-  initialFollowing: boolean
-  isSignedIn: boolean
+  followSlot: ReactNode
 }
 
-export function ShopHeader({ shop, initialFollowing, isSignedIn }: Props) {
+export function ShopHeader({ shop, followSlot }: Props) {
   const joinedDate = new Intl.DateTimeFormat("en-PH", {
     month: "short",
     year: "numeric",
@@ -69,15 +68,7 @@ export function ShopHeader({ shop, initialFollowing, isSignedIn }: Props) {
           </div>
 
           {/* Follow button */}
-          <div className="flex-shrink-0 pt-10">
-            <FollowButton
-              shopId={shop.id}
-              shopSlug={shop.slug}
-              initialFollowing={initialFollowing}
-              initialCount={shop.followersCount}
-              isSignedIn={isSignedIn}
-            />
-          </div>
+          <div className="flex-shrink-0 pt-10">{followSlot}</div>
         </div>
       </div>
     </div>

@@ -24,7 +24,6 @@ const VALID_STATUSES: ReturnRequestStatus[] = [
 
 export async function getAdminReturnRequestList(page: number, statusFilter?: string | null) {
   await assertAdmin()
-  await escalateExpiredReturnRequests()
 
   const where: Prisma.ReturnRequestWhereInput =
     statusFilter && VALID_STATUSES.includes(statusFilter as ReturnRequestStatus)
@@ -51,7 +50,9 @@ export async function getAdminReturnRequestList(page: number, statusFilter?: str
 
 export async function getAdminReturnRequestDetail(id: string) {
   await assertAdmin()
-  await escalateExpiredReturnRequests()
+
+  const target = await prisma.returnRequest.findUnique({ where: { id }, select: { orderId: true } })
+  if (target) await escalateExpiredReturnRequests(target.orderId)
 
   return prisma.returnRequest.findUnique({
     where: { id },

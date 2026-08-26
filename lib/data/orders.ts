@@ -4,32 +4,43 @@ import { escalateExpiredReturnRequests } from "@/lib/orders/timeline"
 import { releaseExpiredReservations } from "@/lib/inventory/reservations"
 import type { OrderWithItems } from "@/types"
 
-export const getBuyerOrders = cache(async (userId: string): Promise<OrderWithItems[]> => {
-  return prisma.order.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      status: true,
-      total: true,
-      createdAt: true,
-      shop: { select: { name: true, slug: true } },
-      items: {
-        select: {
-          id: true,
-          quantity: true,
-          price: true,
-          product: { select: { id: true, name: true, slug: true, images: true } },
-          variant: { select: { name: true } },
+const BUYER_ORDERS_PAGE_SIZE = 20
+
+export const getBuyerOrders = cache(async (
+  userId: string,
+  page = 1
+): Promise<{ orders: OrderWithItems[]; total: number; pageSize: number }> => {
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * BUYER_ORDERS_PAGE_SIZE,
+      take: BUYER_ORDERS_PAGE_SIZE,
+      select: {
+        id: true,
+        status: true,
+        total: true,
+        createdAt: true,
+        shop: { select: { name: true, slug: true } },
+        items: {
+          select: {
+            id: true,
+            quantity: true,
+            price: true,
+            product: { select: { id: true, name: true, slug: true, images: true } },
+            variant: { select: { name: true } },
+          },
         },
       },
-    },
-  })
+    }),
+    prisma.order.count({ where: { userId } }),
+  ])
+  return { orders, total, pageSize: BUYER_ORDERS_PAGE_SIZE }
 })
 
 export async function getBuyerOrderDetail(orderId: string, userId: string) {
-  await escalateExpiredReturnRequests()
-  await releaseExpiredReservations()
+  await escalateExpiredReturnRequests(orderId)
+  await releaseExpiredReservations({ orderId })
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },

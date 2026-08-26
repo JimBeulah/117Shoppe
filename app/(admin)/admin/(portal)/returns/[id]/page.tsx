@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { getAdminReturnRequestDetail, mediateReturnRequest } from "@/lib/admin/returns"
 import { OrderTimeline } from "@/components/orders/OrderTimeline"
 import { formatPrice } from "@/lib/utils"
@@ -82,7 +83,7 @@ export default async function AdminReturnDetailPage({ params }: Props) {
             <p className="text-xs text-text-secondary uppercase tracking-wide mb-2">Evidence Photos</p>
             <div className="flex flex-wrap gap-2">
               {returnRequest.evidenceUrls.map((url) => (
-                <img key={url} src={url} alt="Evidence" className="w-20 h-20 object-cover rounded border border-border-default" />
+                <Image key={url} src={url} alt="Evidence" width={80} height={80} className="w-20 h-20 object-cover rounded border border-border-default" />
               ))}
             </div>
           </div>

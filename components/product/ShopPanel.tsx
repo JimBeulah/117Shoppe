@@ -14,6 +14,11 @@ interface ShopPanelProps {
   }
 }
 
+async function startConversationAction(shopId: string) {
+  "use server"
+  await startConversation(shopId)
+}
+
 export function ShopPanel({ shop }: ShopPanelProps) {
   return (
     <div className="flex items-center gap-3 p-4 border border-border rounded-lg">
@@ -46,7 +51,7 @@ export function ShopPanel({ shop }: ShopPanelProps) {
         >
           Visit Shop
         </Link>
-        <form action={startConversation.bind(null, shop.id)}>
+        <form action={startConversationAction.bind(null, shop.id)}>
           <button
             type="submit"
             className="w-full px-3 py-1.5 bg-brand-600 text-white rounded text-xs font-medium hover:bg-brand-500 transition-colors"

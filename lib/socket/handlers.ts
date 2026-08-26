@@ -19,6 +19,23 @@ async function isSellerForShop(userId: string, shopId: string, ownerId: string):
   return !!staff && staff.permissions.includes('CHAT')
 }
 
+/** Simple fixed-window token bucket, one per connection, to stop a single socket from spamming an event. */
+class RateLimiter {
+  private count = 0
+  private windowStart = Date.now()
+  constructor(private readonly limit: number, private readonly windowMs: number) {}
+
+  allow(): boolean {
+    const now = Date.now()
+    if (now - this.windowStart >= this.windowMs) {
+      this.windowStart = now
+      this.count = 0
+    }
+    this.count += 1
+    return this.count <= this.limit
+  }
+}
+
 export function setupSocketServer(io: Server) {
   // Auth middleware — runs before every connection
   io.use(async (socket, next) => {
@@ -57,6 +74,14 @@ export function setupSocketServer(io: Server) {
     // Typing indicator auto-timeout guards, scoped per-connection so they're GC'd on disconnect
     const typingTimeouts = new Map<string, NodeJS.Timeout>()
 
+    // Authorization results cached per connection after join-room, so
+    // send-message doesn't re-query the conversation + staff permissions
+    // on every message.
+    const authorizedConversations = new Map<string, boolean>()
+
+    const sendMessageLimiter = new RateLimiter(20, 10_000) // 20 messages / 10s
+    const typingLimiter = new RateLimiter(30, 10_000) // 30 typing events / 10s
+
     // Join a conversation room (called when user opens a chat)
     socket.on('join-room', async ({ conversationId }: { conversationId: string }) => {
       const conversation = await prisma.conversation.findUnique({
@@ -69,6 +94,7 @@ export function setupSocketServer(io: Server) {
       const isSeller = await isSellerForShop(userId, conversation.shopId, conversation.shop.ownerId)
       if (!isBuyer && !isSeller) return socket.emit('error', 'Unauthorized')
 
+      authorizedConversations.set(conversationId, true)
       socket.join(conversationId)
     })
 
@@ -76,19 +102,34 @@ export function setupSocketServer(io: Server) {
     socket.on(
       'send-message',
       async ({ conversationId, content, imageUrl }: { conversationId: string; content: string; imageUrl?: string | null }) => {
+        if (!sendMessageLimiter.allow()) return socket.emit('error', 'Rate limit exceeded')
+
         const trimmed = content?.trim() ?? ''
         if (!trimmed && !imageUrl) return
 
-        const conversation = await prisma.conversation.findUnique({
-          where: { id: conversationId },
-          include: { shop: { select: { ownerId: true } } },
-        })
-        if (!conversation) return socket.emit('error', 'Conversation not found')
+        let conversation: { buyerId: string; shopId: string; shop: { ownerId: string } } | null = null
+        if (!authorizedConversations.has(conversationId)) {
+          conversation = await prisma.conversation.findUnique({
+            where: { id: conversationId },
+            include: { shop: { select: { ownerId: true } } },
+          })
+          if (!conversation) return socket.emit('error', 'Conversation not found')
+
+          const isBuyer = conversation.buyerId === userId
+          const isSeller = await isSellerForShop(userId, conversation.shopId, conversation.shop.ownerId)
+          if (!isBuyer && !isSeller) return socket.emit('error', 'Unauthorized')
+          authorizedConversations.set(conversationId, true)
+        } else {
+          // Still need buyerId/shop.ownerId to compute the receiver — cheap
+          // lookup, but skips the isSellerForShop permission re-check.
+          conversation = await prisma.conversation.findUnique({
+            where: { id: conversationId },
+            include: { shop: { select: { ownerId: true } } },
+          })
+          if (!conversation) return socket.emit('error', 'Conversation not found')
+        }
 
         const isBuyer = conversation.buyerId === userId
-        const isSeller = await isSellerForShop(userId, conversation.shopId, conversation.shop.ownerId)
-        if (!isBuyer && !isSeller) return socket.emit('error', 'Unauthorized')
-
         const receiverId = isBuyer ? conversation.shop.ownerId : conversation.buyerId
 
         const message = await prisma.message.create({
@@ -96,10 +137,13 @@ export function setupSocketServer(io: Server) {
           select: { id: true, senderId: true, receiverId: true, conversationId: true, content: true, imageUrl: true, isRead: true, createdAt: true },
         })
 
-        await prisma.conversation.update({
-          where: { id: conversationId },
-          data: { lastMessageAt: new Date() },
-        })
+        const [, sender] = await Promise.all([
+          prisma.conversation.update({
+            where: { id: conversationId },
+            data: { lastMessageAt: new Date() },
+          }),
+          prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
+        ])
 
         io.to(conversationId).emit('new-message', {
           ...message,
@@ -110,7 +154,6 @@ export function setupSocketServer(io: Server) {
         const count = await getUnreadCount(receiverId)
         io.to(`user:${receiverId}`).emit('unread-count', { count })
 
-        const sender = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } })
         await createNotification({ userId: receiverId, ...buildNewMessageCopy(sender?.name ?? 'Someone') })
       }
     )
@@ -130,6 +173,8 @@ export function setupSocketServer(io: Server) {
 
     // Typing indicators
     socket.on('typing-start', ({ conversationId }: { conversationId: string }) => {
+      if (!typingLimiter.allow()) return
+
       const key = `${conversationId}:${userId}`
       socket.to(conversationId).emit('user-typing', { conversationId, userId })
 

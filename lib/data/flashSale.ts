@@ -57,8 +57,22 @@ export const getHomeFlashSaleSection = cache(async (
       product: { isActive: true, status: "APPROVED", shop: { isOnVacation: false } },
       stock: { gt: 0 },
     },
-    include: {
-      product: { include: { shop: { select: { name: true, slug: true } } } },
+    select: {
+      salePrice: true,
+      product: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          price: true,
+          originalPrice: true,
+          images: true,
+          rating: true,
+          reviewCount: true,
+          sold: true,
+          shop: { select: { name: true, slug: true } },
+        },
+      },
       flashSale: { select: { endsAt: true } },
     },
     orderBy: { product: { sold: "desc" } },

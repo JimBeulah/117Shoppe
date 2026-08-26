@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { generateUploadButton } from "@uploadthing/react"
 import type { OurFileRouter } from "@/lib/uploadthing"
 
@@ -30,9 +31,11 @@ export default function ProductImageUploader({
         <div className="flex flex-wrap gap-2">
           {value.map((url, i) => (
             <div key={url} className="relative group">
-              <img
+              <Image
                 src={url}
                 alt={`Image ${i + 1}`}
+                width={80}
+                height={80}
                 className="w-20 h-20 object-cover rounded border border-border-default"
               />
               <button

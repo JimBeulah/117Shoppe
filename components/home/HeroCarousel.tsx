@@ -30,6 +30,7 @@ export function HeroCarousel({ banners }: { banners: BannerItem[] }) {
             alt={banner.title ?? "Banner"}
             fill
             priority={i === 0}
+            unoptimized
             sizes="(max-width: 1280px) 100vw, 1280px"
             className="object-cover"
           />

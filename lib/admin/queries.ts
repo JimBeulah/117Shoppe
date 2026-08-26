@@ -195,7 +195,6 @@ export async function getAdminOrders(
   search?: string | null
 ): Promise<{ orders: AdminOrderRow[]; total: number; pageSize: number }> {
   await assertAdmin()
-  await releaseExpiredReservations()
   const VALID_ORDER_STATUSES = ["PENDING", "PAID", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"]
   const where: any = {}
   if (statusFilter && VALID_ORDER_STATUSES.includes(statusFilter)) where.status = statusFilter
@@ -401,7 +400,7 @@ export async function searchAdminProducts(q: string) {
 
 export async function getAdminOrderDetail(orderId: string) {
   await assertAdmin()
-  await releaseExpiredReservations()
+  await releaseExpiredReservations({ orderId })
   return prisma.order.findUnique({
     where: { id: orderId },
     include: {

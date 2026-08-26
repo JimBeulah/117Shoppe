@@ -69,23 +69,44 @@ export async function releaseReservationsForOrder(tx: TxClient, orderId: string)
 }
 
 /**
+ * Scope for a sweep: either a single order being read (order-detail pages),
+ * or the set of products a caller is about to check availability for
+ * (checkout, before validating stock — an expired hold on any of these
+ * products, from any user's abandoned order, should be freed first).
+ * Either way this stays bounded and never scans the whole reservation table.
+ */
+type SweepScope = { orderId: string } | { productIds: string[] }
+
+/**
  * Sweeps reservations whose hold window has lapsed with no payment
  * confirmation: restocks the held quantity, cancels the still-PENDING
- * order, and marks the reservations EXPIRED. Called lazily from order
- * read paths, mirroring escalateExpiredReturnRequests.
+ * order(s), and marks the reservations EXPIRED. Called lazily from order
+ * read paths and checkout, scoped per-call so it never scans other shops'
+ * unrelated reservations, mirroring escalateExpiredReturnRequests.
  */
-export async function releaseExpiredReservations() {
+export async function releaseExpiredReservations(scope: SweepScope) {
+  const where =
+    "orderId" in scope
+      ? { orderId: scope.orderId, status: "HELD" as const, expiresAt: { lt: new Date() } }
+      : { productId: { in: scope.productIds }, status: "HELD" as const, expiresAt: { lt: new Date() } }
+
   const expired = await prisma.stockReservation.findMany({
-    where: { status: "HELD", expiresAt: { lt: new Date() } },
+    where,
     select: { id: true, orderId: true, productId: true, variantId: true, shopId: true, quantity: true },
   })
   if (expired.length === 0) return
 
   const orderIds = Array.from(new Set(expired.map((r) => r.orderId)))
+  const orders = await prisma.order.findMany({
+    where: { id: { in: orderIds } },
+    select: { id: true, status: true, userId: true },
+  })
+  const orderMap = new Map(orders.map((o) => [o.id, o]))
 
   for (const orderId of orderIds) {
-    const order = await prisma.order.findUnique({ where: { id: orderId }, select: { status: true, userId: true } })
+    const order = orderMap.get(orderId)
     if (!order) continue
+
     if (order.status !== "PENDING") {
       // Already paid, cancelled, or otherwise resolved by other means — just
       // clear the stale holds without touching stock a second time.

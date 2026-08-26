@@ -26,9 +26,9 @@ export async function logOrderEvent(
   })
 }
 
-export async function escalateExpiredReturnRequests() {
+export async function escalateExpiredReturnRequests(orderId: string) {
   const expired = await prisma.returnRequest.findMany({
-    where: { status: "PENDING_SELLER", sellerReviewDeadline: { lt: new Date() } },
+    where: { orderId, status: "PENDING_SELLER", sellerReviewDeadline: { lt: new Date() } },
     select: { id: true, orderId: true },
   })
   if (expired.length === 0) return

@@ -11,6 +11,11 @@ interface Props {
   searchParams: Promise<{ page?: string }>
 }
 
+async function markAllAsReadAction() {
+  "use server"
+  await markAllAsRead()
+}
+
 export default async function NotificationsPage({ searchParams }: Props) {
   const { userId } = await auth()
   if (!userId) redirect("/sign-in")
@@ -31,7 +36,7 @@ export default async function NotificationsPage({ searchParams }: Props) {
           <Link href="/notifications/settings" className="text-sm text-brand-600 hover:underline">
             Settings
           </Link>
-          <form action={markAllAsRead}>
+          <form action={markAllAsReadAction}>
             <button type="submit" className="text-sm text-brand-600 hover:underline">
               Mark all as read
             </button>

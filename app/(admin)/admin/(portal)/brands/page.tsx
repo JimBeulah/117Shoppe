@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import { getAdminBrands } from "@/lib/admin/queries"
 import { createBrand, updateBrand, deleteBrand } from "@/lib/admin/actions"
 import ConfirmButton from "@/components/admin/ConfirmButton"
@@ -36,7 +37,7 @@ export default async function AdminBrandsPage({
                 <td className="px-4 py-3 text-text-secondary font-mono text-xs">{brand.slug}</td>
                 <td className="px-4 py-3">
                   {brand.logoUrl ? (
-                    <img src={brand.logoUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-border-default" />
+                    <Image src={brand.logoUrl} alt="" width={32} height={32} unoptimized className="w-8 h-8 rounded-full object-cover border border-border-default" />
                   ) : (
                     <span className="text-text-secondary">—</span>
                   )}

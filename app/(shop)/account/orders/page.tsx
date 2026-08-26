@@ -4,18 +4,26 @@ import { getCurrentUser } from "@/lib/data/user"
 import { getBuyerOrders } from "@/lib/data/orders"
 import { getUserReviewedProductIds } from "@/lib/data/reviews"
 import { OrderCard } from "@/components/account/OrderCard"
+import { Pagination } from "@/components/catalog/Pagination"
 
 export const metadata = { title: "My Purchases | 11/7 Shoppe" }
 
-export default async function OrdersPage() {
+interface Props {
+  searchParams: Promise<{ page?: string }>
+}
+
+export default async function OrdersPage({ searchParams }: Props) {
   const { userId } = await auth()
   if (!userId) redirect("/sign-in")
 
   const user = await getCurrentUser()
   if (!user) redirect("/sign-in")
 
-  const [orders, reviewedIds] = await Promise.all([
-    getBuyerOrders(user.id),
+  const sp = await searchParams
+  const page = Math.max(1, Number(sp.page ?? 1) || 1)
+
+  const [{ orders, total, pageSize }, reviewedIds] = await Promise.all([
+    getBuyerOrders(user.id, page),
     getUserReviewedProductIds(user.id),
   ])
 
@@ -34,6 +42,7 @@ export default async function OrdersPage() {
       {orders.map((order) => (
         <OrderCard key={order.id} order={order} reviewedProductIds={reviewedIds} />
       ))}
+      <Pagination total={total} pageSize={pageSize} currentPage={page} />
     </div>
   )
 }

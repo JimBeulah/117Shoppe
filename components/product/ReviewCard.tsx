@@ -1,3 +1,4 @@
+import Image from "next/image"
 import type { ReviewWithUser } from "@/types"
 import { HelpfulButton } from "@/components/reviews/HelpfulButton"
 
@@ -40,10 +41,12 @@ export function ReviewCard({ review, productSlug }: ReviewCardProps) {
           {(review.images.length > 0 || review.videos.length > 0) && (
             <div className="flex flex-wrap gap-2 mt-2">
               {review.images.map((url, i) => (
-                <img
+                <Image
                   key={url}
                   src={url}
                   alt={`Review photo ${i + 1}`}
+                  width={64}
+                  height={64}
                   className="w-16 h-16 object-cover rounded border border-border-default"
                 />
               ))}

@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import type { ChatMessage } from '@/types/chat'
 
 interface Props {
@@ -20,12 +21,12 @@ export function MessageBubble({ message, isOwn }: Props) {
         }`}
       >
         {message.imageUrl && (
-          <img
-            src={message.imageUrl}
-            alt="Sent image"
-            className="max-w-[240px] max-h-[240px] rounded-md mb-1 cursor-pointer object-cover"
+          <div
+            className="relative w-[240px] h-[240px] rounded-md mb-1 cursor-pointer overflow-hidden"
             onClick={() => window.open(message.imageUrl!, '_blank')}
-          />
+          >
+            <Image src={message.imageUrl} alt="Sent image" fill className="object-cover" />
+          </div>
         )}
         {message.content && <p>{message.content}</p>}
         <p className={`text-[10px] mt-0.5 ${isOwn ? 'text-white/70 text-right' : 'text-text-secondary'}`}>

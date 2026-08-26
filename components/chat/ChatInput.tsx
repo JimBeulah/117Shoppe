@@ -1,12 +1,16 @@
 "use client"
 
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
+import dynamic from 'next/dynamic'
 import { Send, Image as ImageIcon, Smile, X } from 'lucide-react'
-import EmojiPicker, { EmojiClickData } from 'emoji-picker-react'
+import type { EmojiClickData } from 'emoji-picker-react'
 import { generateReactHelpers } from '@uploadthing/react'
 import type { OurFileRouter } from '@/lib/uploadthing'
 
 const { useUploadThing } = generateReactHelpers<OurFileRouter>()
+
+const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false })
 
 interface Props {
   onSend: (content: string, imageUrl?: string | null) => void
@@ -108,7 +112,7 @@ export function ChatInput({ onSend, onTypingStart, onTypingStop, disabled }: Pro
       {pendingImage && (
         <div className="px-3 pt-3">
           <div className="relative inline-block group">
-            <img src={pendingImage} alt="Pending upload" className="w-20 h-20 object-cover rounded border border-border" />
+            <Image src={pendingImage} alt="Pending upload" width={80} height={80} className="w-20 h-20 object-cover rounded border border-border" />
             <button
               type="button"
               onClick={() => setPendingImage(null)}

@@ -103,8 +103,6 @@ export async function getSellerOrders(
   page: number,
   search?: string | null
 ) {
-  await releaseExpiredReservations()
-
   const PAGE_SIZE = 20
   const where: any = { shopId }
   if (statusFilter) where.status = statusFilter as any
@@ -139,8 +137,8 @@ export async function getSellerOrders(
 }
 
 export async function getSellerOrderDetail(orderId: string, shopId: string) {
-  await escalateExpiredReturnRequests()
-  await releaseExpiredReservations()
+  await escalateExpiredReturnRequests(orderId)
+  await releaseExpiredReservations({ orderId })
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
@@ -246,20 +244,32 @@ export async function getShopStaff(shopId: string) {
   })
 }
 
-export async function getShopReviews(shopId: string): Promise<ShopReviewWithProduct[]> {
-  return prisma.review.findMany({
-    where: { product: { shopId } },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      rating: true,
-      comment: true,
-      createdAt: true,
-      user: { select: { name: true } },
-      product: { select: { id: true, name: true, images: true } },
-      reply: { select: { comment: true } },
-    },
-  })
+const SHOP_REVIEWS_PAGE_SIZE = 20
+
+export async function getShopReviews(
+  shopId: string,
+  page = 1
+): Promise<{ reviews: ShopReviewWithProduct[]; total: number; pageSize: number }> {
+  const where = { product: { shopId } }
+  const [reviews, total] = await Promise.all([
+    prisma.review.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * SHOP_REVIEWS_PAGE_SIZE,
+      take: SHOP_REVIEWS_PAGE_SIZE,
+      select: {
+        id: true,
+        rating: true,
+        comment: true,
+        createdAt: true,
+        user: { select: { name: true } },
+        product: { select: { id: true, name: true, images: true } },
+        reply: { select: { comment: true } },
+      },
+    }),
+    prisma.review.count({ where }),
+  ])
+  return { reviews, total, pageSize: SHOP_REVIEWS_PAGE_SIZE }
 }
 
 export async function getSellerVouchers(

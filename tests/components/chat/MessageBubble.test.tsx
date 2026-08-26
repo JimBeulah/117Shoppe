@@ -39,7 +39,9 @@ describe('MessageBubble', () => {
     const imageMsg: ChatMessage = { ...msg, content: '', imageUrl: 'https://example.com/photo.png' }
     render(<MessageBubble message={imageMsg} isOwn={false} />)
     const img = screen.getByAltText('Sent image') as HTMLImageElement
-    expect(img.src).toBe('https://example.com/photo.png')
+    // next/image rewrites src through the optimizer loader — assert the
+    // original URL is embedded rather than an exact string match.
+    expect(img.src).toContain(encodeURIComponent('https://example.com/photo.png'))
     expect(screen.queryByText('Hello!')).toBeNull()
   })
 

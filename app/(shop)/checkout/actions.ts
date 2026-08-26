@@ -79,11 +79,20 @@ export async function placeOrder(
   const user = await getCurrentUser()
   if (!user) return { error: "Unauthorized" }
 
-  // Free up stock from any abandoned checkouts before checking availability
-  await releaseExpiredReservations()
-
   const address = await prisma.address.findUnique({ where: { id: addressId } })
   if (!address || address.userId !== user.id) return { error: "Invalid address" }
+
+  const cartProductIds = await prisma.cartItem.findMany({
+    where: { cart: { userId: user.id } },
+    select: { productId: true },
+  })
+  if (cartProductIds.length === 0) return { error: "Cart is empty" }
+
+  // Free up any expired holds on these specific products before checking
+  // availability — an abandoned checkout (by any user) could be holding
+  // stock this cart needs. Must run before the stock-bearing cart fetch
+  // below so validation sees post-sweep stock numbers.
+  await releaseExpiredReservations({ productIds: cartProductIds.map((item) => item.productId) })
 
   const cart = await prisma.cart.findUnique({
     where: { userId: user.id },
