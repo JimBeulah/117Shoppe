@@ -1,10 +1,18 @@
 import { cache } from "react"
+import { unstable_cache } from "next/cache"
 import { prisma } from "@/lib/db"
 import type { Prisma } from "@/lib/generated/prisma/client"
 import type { CatalogFilters, CatalogResult, CategoryItem, ProductCard, ProductDetail, ShopDetail } from "@/types"
 import { activeFlashSaleItemInclude, mapFlashSale } from "@/lib/data/flashSale"
 
 const PAGE_SIZE = 20
+
+// Short server-side TTL cache on top of Prisma reads. Listing pages read `searchParams`,
+// which forces Next.js to render them dynamically (route-level `revalidate` has no effect),
+// so this is what actually keeps repeat catalog queries off the DB. Staleness up to
+// `CATALOG_CACHE_SECONDS` is acceptable for browse/listing views (stock/price on the
+// product detail page is always read fresh via `getProductBySlug`'s own, shorter TTL).
+const CATALOG_CACHE_SECONDS = 60
 
 export function parseCatalogFilters(
   searchParams: Record<string, string | string[] | undefined>
@@ -76,7 +84,7 @@ export function buildSearchWhere(filters: CatalogFilters): Prisma.ProductWhereIn
   return where
 }
 
-export const searchProducts = cache(async (
+export const searchProducts = cache(unstable_cache(async (
   filters: CatalogFilters
 ): Promise<{ products: ProductCard[]; total: number; pageSize: number }> => {
   const where = buildSearchWhere(filters)
@@ -96,17 +104,17 @@ export const searchProducts = cache(async (
   ])
 
   return { products: products.map(mapFlashSale), total, pageSize: PAGE_SIZE }
-})
+}, ["search-products"], { revalidate: CATALOG_CACHE_SECONDS, tags: ["products"] }))
 
-export const getParentCategories = cache(async (): Promise<CategoryItem[]> => {
+export const getParentCategories = cache(unstable_cache(async (): Promise<CategoryItem[]> => {
   return prisma.category.findMany({
     where: { parentId: null },
     select: { id: true, name: true, slug: true, icon: true, imageUrl: true },
     orderBy: { name: "asc" },
   })
-})
+}, ["parent-categories"], { revalidate: 300, tags: ["categories"] }))
 
-export const getCategoryWithProducts = cache(async (
+export const getCategoryWithProducts = cache(unstable_cache(async (
   slug: string,
   level: "parent" | "child",
   filters: CatalogFilters
@@ -166,7 +174,7 @@ export const getCategoryWithProducts = cache(async (
     total,
     pageSize: PAGE_SIZE,
   }
-})
+}, ["category-with-products"], { revalidate: CATALOG_CACHE_SECONDS, tags: ["products", "categories"] }))
 
 export const getProductBySlug = cache(async (slug: string): Promise<ProductDetail | null> => {
   const product = await prisma.product.findUnique({
@@ -226,7 +234,7 @@ export const getProductBySlug = cache(async (slug: string): Promise<ProductDetai
   }
 })
 
-export const getShopBySlug = cache(async (slug: string): Promise<ShopDetail | null> => {
+export const getShopBySlug = cache(unstable_cache(async (slug: string): Promise<ShopDetail | null> => {
   const shop = await prisma.shop.findUnique({
     where: { slug, status: "ACTIVE" },
     select: {
@@ -244,9 +252,9 @@ export const getShopBySlug = cache(async (slug: string): Promise<ShopDetail | nu
     },
   })
   return shop
-})
+}, ["shop-by-slug"], { revalidate: CATALOG_CACHE_SECONDS, tags: ["shops"] }))
 
-export const getShopProducts = cache(async (
+export const getShopProducts = cache(unstable_cache(async (
   shopId: string,
   filters: CatalogFilters
 ): Promise<{ products: ProductCard[]; total: number; pageSize: number }> => {
@@ -280,4 +288,4 @@ export const getShopProducts = cache(async (
   ])
 
   return { products: products.map(mapFlashSale), total, pageSize: PAGE_SIZE }
-})
+}, ["shop-products"], { revalidate: CATALOG_CACHE_SECONDS, tags: ["products", "shops"] }))

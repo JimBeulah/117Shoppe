@@ -1,13 +1,17 @@
 import { redirect } from "next/navigation"
 import { getCurrentUser } from "@/lib/data/user"
 import { getShopAccess, canAccess } from "@/lib/seller/access"
+import dynamic from "next/dynamic"
 import { getSellerSalesReport } from "@/lib/seller/reports"
 import { formatPrice } from "@/lib/utils"
-import { RevenueChart } from "@/components/reports/RevenueChart"
 import { StatCard } from "@/components/reports/StatCard"
 import { DateRangeForm } from "@/components/reports/DateRangeForm"
 import { ReportTable } from "@/components/reports/ReportTable"
 import { resolveDateRange, toDateInputValue } from "@/lib/reports/dates"
+
+const RevenueChart = dynamic(() =>
+  import("@/components/reports/RevenueChart").then((m) => m.RevenueChart)
+)
 
 export const metadata = { title: "Seller — Reports" }
 

@@ -1,10 +1,14 @@
 import { redirect } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import type { Metadata } from 'next'
 import { getCurrentUser } from '@/lib/data/user'
 import { getConversationsForBuyer, toConversationItem } from '@/lib/data/chat'
 import { ConversationList } from '@/components/chat/ConversationList'
-import { ChatWindow } from '@/components/chat/ChatWindow'
 import type { ConversationItem } from '@/types/chat'
+
+const ChatWindow = dynamic(() =>
+  import('@/components/chat/ChatWindow').then((m) => m.ChatWindow)
+)
 
 export const metadata: Metadata = { title: 'Messages' }
 

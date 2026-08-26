@@ -1,8 +1,15 @@
 import { cache } from "react"
+import { unstable_cache } from "next/cache"
 import { prisma } from "@/lib/db"
 import type { ProductCard } from "@/types"
 
 const PAGE_SIZE = 20
+
+// Short TTL: flash-sale stock is high-contention and shown here for browsing only.
+// The actual purchase-time stock check in checkout is always a fresh, atomic DB read
+// (see `app/(shop)/checkout/actions.ts`), so a few seconds of staleness here can't
+// cause oversell — it can only briefly show an item as available moments after it sells out.
+const FLASH_SALE_CACHE_SECONDS = 15
 
 export function activeFlashSaleItemInclude(now: Date = new Date()) {
   return {
@@ -47,7 +54,7 @@ export function effectivePrice(
   return product.flashSaleItems[0]?.salePrice ?? product.price
 }
 
-export const getHomeFlashSaleSection = cache(async (
+export const getHomeFlashSaleSection = cache(unstable_cache(async (
   limit = 10
 ): Promise<{ products: ProductCard[]; endsAt: Date } | null> => {
   const now = new Date()
@@ -103,9 +110,9 @@ export const getHomeFlashSaleSection = cache(async (
   }))
 
   return { products, endsAt }
-})
+}, ["home-flash-sale"], { revalidate: FLASH_SALE_CACHE_SECONDS, tags: ["flash-sale"] }))
 
-export const getAllActiveFlashSaleProducts = cache(async (
+export const getAllActiveFlashSaleProducts = cache(unstable_cache(async (
   page: number
 ): Promise<{ products: ProductCard[]; total: number; pageSize: number }> => {
   const now = new Date()
@@ -146,4 +153,4 @@ export const getAllActiveFlashSaleProducts = cache(async (
   }))
 
   return { products, total, pageSize: PAGE_SIZE }
-})
+}, ["all-flash-sale-products"], { revalidate: FLASH_SALE_CACHE_SECONDS, tags: ["flash-sale"] }))

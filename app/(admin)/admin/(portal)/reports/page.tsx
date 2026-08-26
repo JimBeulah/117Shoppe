@@ -1,10 +1,14 @@
+import dynamic from "next/dynamic"
 import { getSalesReport } from "@/lib/admin/reports"
 import { formatPrice } from "@/lib/utils"
-import { RevenueChart } from "@/components/reports/RevenueChart"
 import { StatCard } from "@/components/reports/StatCard"
 import { DateRangeForm } from "@/components/reports/DateRangeForm"
 import { ReportTable } from "@/components/reports/ReportTable"
 import { resolveDateRange } from "@/lib/reports/dates"
+
+const RevenueChart = dynamic(() =>
+  import("@/components/reports/RevenueChart").then((m) => m.RevenueChart)
+)
 
 export const metadata = { title: "Admin — Reports" }
 
