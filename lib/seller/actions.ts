@@ -13,6 +13,7 @@ import {
   buildShopVacationEndCopy,
   buildStaffAddedCopy,
 } from "@/lib/notifications/copy"
+import { notifyWishlistPriceDrop } from "@/lib/notifications/price-drop"
 import { reconcileEligibleCommissions } from "@/lib/payouts/reconcile"
 import { MIN_PAYOUT_AMOUNT } from "@/lib/payouts/config"
 import { logOrderEvent } from "@/lib/orders/timeline"
@@ -327,6 +328,14 @@ export async function upsertProduct(data: UpsertProductData): Promise<{ error?: 
     return { error: "Failed to save product. Please try again." }
   }
 
+  if (existing && existing.price !== data.price) {
+    try {
+      await notifyWishlistPriceDrop(data.id!, data.name, data.slug, existing.price, data.price)
+    } catch {
+      // Notification failures must never block the product save.
+    }
+  }
+
   revalidatePath("/seller/products")
   return {}
 }
@@ -368,7 +377,7 @@ export async function bulkUpdateProducts(
 
   const owned = await prisma.product.findMany({
     where: { id: { in: productIds }, shopId: shop.id },
-    select: { id: true, price: true },
+    select: { id: true, name: true, slug: true, price: true },
   })
   if (owned.length === 0) return { error: "No matching products found" }
 
@@ -379,16 +388,24 @@ export async function bulkUpdateProducts(
     })
   } else {
     if (patch.value <= 0) return { error: "Value must be greater than 0" }
+    const priceChanges = owned.map((p) => {
+      const delta = patch.mode === "percent" ? p.price * (patch.value / 100) : patch.value
+      const newPrice =
+        Math.round(Math.max(0, patch.direction === "increase" ? p.price + delta : p.price - delta) * 100) / 100
+      return { id: p.id, name: p.name, slug: p.slug, oldPrice: p.price, newPrice }
+    })
+
     await prisma.$transaction(
-      owned.map((p) => {
-        const delta = patch.mode === "percent" ? p.price * (patch.value / 100) : patch.value
-        const newPrice = Math.max(0, patch.direction === "increase" ? p.price + delta : p.price - delta)
-        return prisma.product.update({
-          where: { id: p.id },
-          data: { price: Math.round(newPrice * 100) / 100 },
-        })
-      })
+      priceChanges.map((p) => prisma.product.update({ where: { id: p.id }, data: { price: p.newPrice } }))
     )
+
+    try {
+      await Promise.all(
+        priceChanges.map((p) => notifyWishlistPriceDrop(p.id, p.name, p.slug, p.oldPrice, p.newPrice))
+      )
+    } catch {
+      // Notification failures must never block the bulk update.
+    }
   }
 
   revalidatePath("/seller/products")

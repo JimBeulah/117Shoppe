@@ -90,6 +90,28 @@ export interface ProductVariantItem {
   image: string | null
 }
 
+export interface WishlistItem {
+  id: string
+  createdAt: Date
+  product: {
+    id: string
+    name: string
+    slug: string
+    price: number
+    originalPrice: number | null
+    images: string[]
+    stock: number
+    isActive: boolean
+    status: string
+    hasVariants: boolean
+    shop: {
+      name: string
+      slug: string
+      isOnVacation: boolean
+    }
+  }
+}
+
 export interface AddressItem {
   id: string
   fullName: string

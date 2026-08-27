@@ -5,6 +5,7 @@ import { ShoppingCart } from "lucide-react"
 import { UnreadBadge } from "@/components/chat/UnreadBadge"
 import { NotificationBell } from "@/components/notifications/NotificationBell"
 import { SearchBox } from "@/components/layout/SearchBox"
+import { WishlistLink } from "@/components/layout/WishlistLink"
 import {
   Show,
   SignInButton,
@@ -40,6 +41,7 @@ export function Navbar({ cartBadge }: NavbarProps) {
                 {cartBadge ?? "0"}
               </span>
             </Link>
+            <WishlistLink />
             <UnreadBadge />
             <NotificationBell />
             <div className="h-5 w-px bg-white/30" />

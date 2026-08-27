@@ -2,6 +2,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { formatPrice, formatSold, calcDiscount } from "@/lib/utils"
 import { Badge } from "@/components/ui/Badge"
+import { WishlistHeart } from "@/components/wishlist/WishlistHeart"
 import type { ProductCard as ProductCardType } from "@/types"
 
 export function ProductCard({ product }: { product: ProductCardType }) {
@@ -30,6 +31,9 @@ export function ProductCard({ product }: { product: ProductCardType }) {
             <Badge variant="hot" label="Flash" />
           </div>
         )}
+        <div className="absolute bottom-2 right-2">
+          <WishlistHeart productId={product.id} />
+        </div>
       </div>
       <div className="p-2.5">
         <p className="text-xs text-text-primary font-medium line-clamp-2 leading-snug min-h-[32px]">{product.name}</p>

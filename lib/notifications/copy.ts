@@ -183,6 +183,15 @@ export function buildReturnCancelledCopy(orderId: string, buyerName: string) {
   }
 }
 
+export function buildPriceDropCopy(productName: string, productSlug: string, oldPrice: number, newPrice: number) {
+  return {
+    type: NotificationType.PRICE_DROP,
+    title: "Price drop on your saved item",
+    message: `"${productName}" dropped from ₱${oldPrice.toFixed(2)} to ₱${newPrice.toFixed(2)}.`,
+    link: `/product/${productSlug}` as string | null,
+  }
+}
+
 export function buildReturnRefundCompletedCopy(orderId: string) {
   return {
     type: NotificationType.RETURN_STATUS,

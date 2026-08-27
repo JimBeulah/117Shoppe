@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { VariantPicker } from "@/components/product/VariantPicker"
 import { AddToCartButton } from "@/components/product/AddToCartButton"
+import { WishlistHeart } from "@/components/wishlist/WishlistHeart"
 import { Badge } from "@/components/ui/Badge"
 import { formatPrice, calcDiscount } from "@/lib/utils"
 import type { ProductVariantItem } from "@/types"
@@ -81,12 +82,17 @@ export function ProductInteractivePanel({
       )}
 
       {/* Cart */}
-      <AddToCartButton
-        productId={productId}
-        variantId={selectedId}
-        stock={isShopOnVacation ? 0 : stock}
-        outOfStockLabel={isShopOnVacation ? "Seller on Vacation" : "Out of Stock"}
-      />
+      <div className="flex items-start gap-3">
+        <div className="flex-1">
+          <AddToCartButton
+            productId={productId}
+            variantId={selectedId}
+            stock={isShopOnVacation ? 0 : stock}
+            outOfStockLabel={isShopOnVacation ? "Seller on Vacation" : "Out of Stock"}
+          />
+        </div>
+        <WishlistHeart productId={productId} variant="pdp" />
+      </div>
     </div>
   )
 }
