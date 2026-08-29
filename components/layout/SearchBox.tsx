@@ -10,7 +10,7 @@ import { useDebouncedValue } from "@/hooks/use-debounce"
 import { recordSearch } from "@/app/(shop)/search/actions"
 import type { SearchSuggestionsResponse } from "@/types/search"
 
-export function SearchBox() {
+export function SearchBox({ compact = false }: { compact?: boolean }) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const [, startTransition] = useTransition()
@@ -74,28 +74,33 @@ export function SearchBox() {
         <form
           ref={anchorRef}
           onSubmit={handleSubmit}
-          className="flex-1 flex items-center bg-white rounded-md"
+          className="flex-1 min-w-0 flex items-center bg-white rounded-md"
         >
           <input
             type="text"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onFocus={() => setOpen(true)}
-            placeholder="Search products, shops, brands..."
-            className="flex-1 px-4 py-2.5 text-text-primary text-sm outline-none"
+            placeholder={compact ? "Search..." : "Search products, shops, brands..."}
+            className={`flex-1 min-w-0 ${compact ? "px-3 py-2" : "px-4 py-2.5"} text-text-primary text-sm outline-none`}
           />
           <button
             type="submit"
             aria-label="Search"
-            className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2 my-1 mr-1 rounded flex items-center transition-colors"
+            className={`flex-shrink-0 bg-brand-600 hover:bg-brand-500 text-white ${compact ? "px-3 py-1.5" : "px-6 py-2"} my-1 mr-1 rounded flex items-center transition-colors`}
           >
-            <Search size={18} />
+            <Search size={compact ? 16 : 18} />
           </button>
         </form>
       </PopoverAnchor>
       <PopoverContent
-        align="start"
-        className="w-[28rem] max-w-[90vw] text-text-primary p-0 overflow-hidden"
+        align={compact ? "center" : "start"}
+        sideOffset={compact ? 4 : 8}
+        className={
+          compact
+            ? "w-[calc(100vw-1rem)] max-w-none text-text-primary p-0 overflow-hidden"
+            : "w-[28rem] max-w-[90vw] text-text-primary p-0 overflow-hidden"
+        }
         onOpenAutoFocus={(e) => e.preventDefault()}
         onInteractOutside={(e) => {
           if (anchorRef.current?.contains(e.target as Node)) e.preventDefault()

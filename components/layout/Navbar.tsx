@@ -20,7 +20,25 @@ interface NavbarProps {
 export function Navbar({ cartBadge }: NavbarProps) {
   return (
     <header className="bg-brand-700 text-white sticky top-0 z-50 shadow-md">
-      <div className="max-w-7xl mx-auto px-4 py-3">
+      {/* Mobile compact header */}
+      <div className="md:hidden flex items-center gap-1.5 px-2 py-2 w-full overflow-hidden">
+        <Link href="/" className="flex-shrink-0 leading-none">
+          <span className="text-white font-bold text-sm tracking-tight">11/7</span>
+        </Link>
+        <SearchBox compact />
+        <Link href="/cart" aria-label="Shopping cart" className="relative flex-shrink-0 p-1">
+          <ShoppingCart size={20} />
+          <span className="absolute -top-0.5 -right-0.5 bg-accent-sale text-white text-[9px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center">
+            {cartBadge ?? "0"}
+          </span>
+        </Link>
+        <div className="flex-shrink-0 p-1">
+          <NotificationBell />
+        </div>
+      </div>
+
+      {/* Desktop header */}
+      <div className="hidden md:block max-w-7xl mx-auto px-4 py-3">
         <div className="flex items-center gap-4">
           {/* Logo */}
           <Link href="/" className="flex-shrink-0 transition-opacity hover:opacity-80">
