@@ -6,6 +6,8 @@ import { getCurrentUser } from "@/lib/data/user"
 import { activeFlashSaleItemInclude, effectivePrice } from "@/lib/data/flashSale"
 import { validateVoucherCode, peekVoucherShopId, type VoucherValidationResult } from "@/lib/data/voucher"
 import { splitProportionally } from "@/lib/voucher"
+import { coinsToPeso, maxRedeemableCoins, splitCoinsProportionally } from "@/lib/coins"
+import { spendCoins, expireCoins } from "@/lib/coins/ledger"
 import { createNotification } from "@/lib/notifications/create"
 import { buildNewOrderCopy } from "@/lib/notifications/copy"
 import { createPaymongoLink } from "@/lib/payments/paymongo"
@@ -70,11 +72,45 @@ export async function applyVoucher(code: string): Promise<VoucherValidationResul
   return validateVoucherCode(code, subtotal)
 }
 
+export async function applyCoins(
+  coins: number,
+  voucherDiscount = 0
+): Promise<{ coinsApplied?: number; coinDiscount?: number; balance?: number; maxRedeemable?: number; error?: string }> {
+  const user = await getCurrentUser()
+  if (!user) return { error: "Unauthorized" }
+
+  const cart = await prisma.cart.findUnique({
+    where: { userId: user.id },
+    include: {
+      items: {
+        include: {
+          product: { include: { shop: true, flashSaleItems: activeFlashSaleItemInclude() } },
+          variant: true,
+        },
+      },
+    },
+  })
+  if (!cart || cart.items.length === 0) return { error: "Cart is empty" }
+
+  const subtotal = cart.items.reduce((sum, item) => sum + effectivePrice(item.product, item.variant) * item.quantity, 0)
+  const discountable = Math.max(subtotal - voucherDiscount, 0)
+
+  await expireCoins({ userId: user.id })
+  const balance = (await prisma.user.findUnique({ where: { id: user.id }, select: { coins: true } }))?.coins ?? 0
+
+  const maxRedeemable = maxRedeemableCoins(balance, discountable)
+  const coinsApplied = Math.max(0, Math.min(Math.floor(coins) || 0, maxRedeemable))
+  const coinDiscount = coinsToPeso(coinsApplied)
+
+  return { coinsApplied, coinDiscount, balance, maxRedeemable }
+}
+
 export async function placeOrder(
   addressId: string,
   paymentMethod: "COD" | "PAYMONGO",
   shippingSelections: Record<string, string>,
-  voucherCode?: string
+  voucherCode?: string,
+  coinsToRedeem = 0
 ): Promise<{ orderIds?: string[]; checkoutUrl?: string; error?: string }> {
   const user = await getCurrentUser()
   if (!user) return { error: "Unauthorized" }
@@ -167,6 +203,24 @@ export async function placeOrder(
     }
   }
 
+  // Coins discount the merchandise subtotal only (never shipping), after the
+  // voucher has already been taken off — clamp against the live balance so a
+  // stale client-side estimate can never overspend.
+  const discountableTotals = itemsTotals.map((total, i) => Math.max(total - shopDiscounts[i], 0))
+  const discountableSubtotal = discountableTotals.reduce((a, b) => a + b, 0)
+
+  let shopCoins = itemsTotals.map(() => 0)
+  let shopCoinDiscount = itemsTotals.map(() => 0)
+
+  if (coinsToRedeem > 0) {
+    await expireCoins({ userId: user.id })
+    const balance = (await prisma.user.findUnique({ where: { id: user.id }, select: { coins: true } }))?.coins ?? 0
+    const clampedCoins = maxRedeemableCoins(balance, discountableSubtotal)
+    const coinsRequested = Math.min(Math.floor(coinsToRedeem), clampedCoins)
+    shopCoins = splitCoinsProportionally(coinsRequested, discountableTotals)
+    shopCoinDiscount = shopCoins.map(coinsToPeso)
+  }
+
   const shopIds = groupEntries.map(([shopId]) => shopId)
   const shippingOptionsByShop = await getShippingOptionsForShops(shopIds, address.province)
 
@@ -188,8 +242,10 @@ export async function placeOrder(
     const [shopId, items] = groupEntries[i]
     const itemsTotal = itemsTotals[i]
     const discountAmount = shopDiscounts[i]
+    const coinsUsed = shopCoins[i]
+    const coinDiscount = shopCoinDiscount[i]
     const shipping = resolvedShipping[i]
-    const orderTotal = itemsTotal - discountAmount + shipping.price
+    const orderTotal = itemsTotal - discountAmount - coinDiscount + shipping.price
     const orderVoucherId = voucherShopId ? (shopId === voucherShopId ? voucherId : null) : voucherId
 
     let order
@@ -258,6 +314,8 @@ export async function placeOrder(
             shippingMethodId: shipping.methodId,
             shippingMethodName: `${shipping.name} (${shipping.carrier})`,
             discountAmount,
+            coinsUsed,
+            coinDiscount,
             voucherId: orderVoucherId,
             status: paymentMethod === "COD" ? "PAID" : "PENDING",
             items: {
@@ -280,6 +338,15 @@ export async function placeOrder(
             amount: orderTotal,
           },
         })
+
+        if (coinsUsed > 0) {
+          await spendCoins(tx, {
+            userId: user.id,
+            coins: coinsUsed,
+            orderId: newOrder.id,
+            description: "Redeemed at checkout",
+          })
+        }
 
         for (const movement of stockMovements) {
           await logStockMovement(tx, {
@@ -356,8 +423,10 @@ export async function placeOrder(
 
   if (paymentMethod === "PAYMONGO") {
     const shippingTotal = resolvedShipping.reduce((sum, s) => sum + s.price, 0)
-    const grandTotal = itemsTotals.reduce((sum, itemsTotal, i) => sum + itemsTotal - shopDiscounts[i], 0) +
-      shippingTotal
+    const grandTotal = itemsTotals.reduce(
+      (sum, itemsTotal, i) => sum + itemsTotal - shopDiscounts[i] - shopCoinDiscount[i],
+      0
+    ) + shippingTotal
 
     try {
       const link = await createPaymongoLink(grandTotal, `117Shoppe order ${orderIds.join(", ")}`)

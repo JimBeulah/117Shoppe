@@ -13,6 +13,8 @@ interface PlaceOrderButtonProps {
   shopCount: number
   voucherCode?: string | null
   discountAmount?: number
+  coinsToRedeem?: number
+  coinDiscount?: number
   paymentMethod: PaymentMethod
   shippingSelections: Record<string, string>
   shippingReady: boolean
@@ -25,6 +27,8 @@ export function PlaceOrderButton({
   shopCount,
   voucherCode = null,
   discountAmount = 0,
+  coinsToRedeem = 0,
+  coinDiscount = 0,
   paymentMethod,
   shippingSelections,
   shippingReady,
@@ -33,7 +37,7 @@ export function PlaceOrderButton({
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState("")
 
-  const grandTotal = total - discountAmount + shippingTotal
+  const grandTotal = total - discountAmount - coinDiscount + shippingTotal
 
   function handlePlaceOrder() {
     if (!addressId) {
@@ -46,7 +50,13 @@ export function PlaceOrderButton({
     }
     setError("")
     startTransition(async () => {
-      const result = await placeOrder(addressId, paymentMethod, shippingSelections, voucherCode ?? undefined)
+      const result = await placeOrder(
+        addressId,
+        paymentMethod,
+        shippingSelections,
+        voucherCode ?? undefined,
+        coinsToRedeem
+      )
       if (result.error && !result.orderIds) {
         setError(result.error)
         return
@@ -74,6 +84,12 @@ export function PlaceOrderButton({
           <div className="flex justify-between text-text-secondary">
             <span>Voucher discount</span>
             <span className="text-green-600">-{formatPrice(discountAmount)}</span>
+          </div>
+        )}
+        {coinDiscount > 0 && (
+          <div className="flex justify-between text-text-secondary">
+            <span>Coins ({coinsToRedeem.toLocaleString()})</span>
+            <span className="text-green-600">-{formatPrice(coinDiscount)}</span>
           </div>
         )}
         <div className="flex justify-between font-semibold text-text-primary border-t border-border pt-2">

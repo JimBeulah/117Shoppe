@@ -4,6 +4,7 @@ import { createNotification } from "@/lib/notifications/create"
 import { buildReturnRefundCompletedCopy } from "@/lib/notifications/copy"
 import { logOrderEvent } from "@/lib/orders/timeline"
 import { adjustStock } from "@/lib/inventory/stock"
+import { grantCoins, clawbackCoins } from "@/lib/coins/ledger"
 
 const REFUND_ELIGIBLE_STATUSES = ["PAID", "SHIPPED", "DELIVERED", "CANCELLED"]
 
@@ -30,6 +31,19 @@ export async function executeRefund(params: {
       where: { orderId: order.id, type: "CANCELLATION_RESTOCK" },
       select: { id: true },
     })) != null
+
+  // A cancelled order already had its redeemed coins returned by cancelOrder,
+  // in the same event that set alreadyRestocked — skip a duplicate return.
+  const coinsAlreadyReturned = alreadyRestocked
+
+  // Only a delivered order has accrued cashback to claw back.
+  const earnedCoin =
+    order.status === "DELIVERED"
+      ? await prisma.coin.findFirst({
+          where: { userId: order.userId, orderId: order.id, type: "EARNED" },
+          select: { amount: true },
+        })
+      : null
 
   let refundId: string
 
@@ -77,6 +91,23 @@ export async function executeRefund(params: {
             })
           }
         }
+        if (!coinsAlreadyReturned && order.coinsUsed > 0) {
+          await grantCoins(tx, {
+            userId: order.userId,
+            coins: order.coinsUsed,
+            type: "REFUNDED",
+            orderId: order.id,
+            description: "Coins returned — order refunded",
+          })
+        }
+        if (earnedCoin && earnedCoin.amount > 0) {
+          await clawbackCoins(tx, {
+            userId: order.userId,
+            coins: earnedCoin.amount,
+            orderId: order.id,
+            description: "Cashback reversed — order refunded",
+          })
+        }
         if (params.returnRequestId) {
           await tx.returnRequest.update({
             where: { id: params.returnRequestId },
@@ -122,6 +153,23 @@ export async function executeRefund(params: {
               actorId: params.initiatedByUserId,
             })
           }
+        }
+        if (!coinsAlreadyReturned && order.coinsUsed > 0) {
+          await grantCoins(tx, {
+            userId: order.userId,
+            coins: order.coinsUsed,
+            type: "REFUNDED",
+            orderId: order.id,
+            description: "Coins returned — order refunded",
+          })
+        }
+        if (earnedCoin && earnedCoin.amount > 0) {
+          await clawbackCoins(tx, {
+            userId: order.userId,
+            coins: earnedCoin.amount,
+            orderId: order.id,
+            description: "Cashback reversed — order refunded",
+          })
         }
         if (params.returnRequestId) {
           await tx.returnRequest.update({

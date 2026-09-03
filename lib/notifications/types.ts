@@ -7,6 +7,7 @@ export const NotificationType = {
   SHOP_STAFF_ADDED: "SHOP_STAFF_ADDED",
   RETURN_STATUS: "RETURN_STATUS",
   PRICE_DROP: "PRICE_DROP",
+  COINS_EARNED: "COINS_EARNED",
 } as const
 
 export type NotificationTypeValue = (typeof NotificationType)[keyof typeof NotificationType]

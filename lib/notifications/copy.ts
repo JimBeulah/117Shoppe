@@ -192,6 +192,15 @@ export function buildPriceDropCopy(productName: string, productSlug: string, old
   }
 }
 
+export function buildCoinsEarnedCopy(orderId: string, coins: number) {
+  return {
+    type: NotificationType.COINS_EARNED,
+    title: "Coins earned",
+    message: `You earned ${coins.toLocaleString()} coins from order ${shortId(orderId)}.`,
+    link: "/account/coins" as string | null,
+  }
+}
+
 export function buildReturnRefundCompletedCopy(orderId: string) {
   return {
     type: NotificationType.RETURN_STATUS,

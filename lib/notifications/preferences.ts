@@ -10,6 +10,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationTypeValue, string> = {
   [NotificationType.SHOP_STAFF_ADDED]: "Being added as shop staff",
   [NotificationType.RETURN_STATUS]: "Return/refund status updates",
   [NotificationType.PRICE_DROP]: "Price drops on saved items",
+  [NotificationType.COINS_EARNED]: "Coins earned from orders",
 }
 
 export async function getNotificationPreferences(userId: string): Promise<Record<string, boolean>> {

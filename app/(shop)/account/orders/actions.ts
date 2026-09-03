@@ -4,12 +4,13 @@ import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/data/user"
 import { createNotification } from "@/lib/notifications/create"
-import { buildBuyerCancelledCopy, buildOrderReceivedCopy } from "@/lib/notifications/copy"
+import { buildBuyerCancelledCopy, buildOrderReceivedCopy, buildCoinsEarnedCopy } from "@/lib/notifications/copy"
 import { PAYOUT_BUFFER_DAYS } from "@/lib/payouts/config"
 import { logOrderEvent } from "@/lib/orders/timeline"
 import { adjustStock } from "@/lib/inventory/stock"
 import { releaseReservationsForOrder } from "@/lib/inventory/reservations"
 import { retrievePaymongoLink } from "@/lib/payments/paymongo"
+import { accrueCoinsForOrder } from "@/lib/coins/accrual"
 
 export async function cancelOrder(orderId: string): Promise<{ error?: string }> {
   const user = await getCurrentUser()
@@ -91,20 +92,24 @@ export async function markOrderReceived(orderId: string): Promise<{ error?: stri
   }
 
   const commissionRate = order.shop.commissionRate
-  const commissionAmount = order.total * (commissionRate / 100)
+  // Coins are a platform-funded rebate — commission is computed on what the
+  // sale was worth before the coin discount, so a redemption never eats into
+  // the seller's payout.
+  const commissionBase = order.total + order.coinDiscount
+  const commissionAmount = commissionBase * (commissionRate / 100)
   const eligibleAt = new Date(Date.now() + PAYOUT_BUFFER_DAYS * 24 * 60 * 60 * 1000)
 
-  await prisma.$transaction(async (tx) => {
+  const coinsEarned = await prisma.$transaction(async (tx) => {
     await tx.order.update({ where: { id: orderId }, data: { status: "DELIVERED" } })
     await tx.shipment.updateMany({ where: { orderId }, data: { status: "DELIVERED" } })
     await tx.commissionEntry.create({
       data: {
         orderId: order.id,
         shopId: order.shop.id,
-        orderTotal: order.total,
+        orderTotal: commissionBase,
         commissionRate,
         commissionAmount,
-        netAmount: order.total - commissionAmount,
+        netAmount: commissionBase - commissionAmount,
         eligibleAt,
       },
     })
@@ -115,12 +120,16 @@ export async function markOrderReceived(orderId: string): Promise<{ error?: stri
       actorId: user.id,
       actorRole: "BUYER",
     })
+    return accrueCoinsForOrder(tx, order)
   })
 
   await createNotification({
     userId: order.shop.ownerId,
     ...buildOrderReceivedCopy(orderId, user.name),
   })
+  if (coinsEarned > 0) {
+    await createNotification({ userId: user.id, ...buildCoinsEarnedCopy(orderId, coinsEarned) })
+  }
 
   revalidatePath(`/account/orders/${orderId}`)
   revalidatePath("/account/orders")

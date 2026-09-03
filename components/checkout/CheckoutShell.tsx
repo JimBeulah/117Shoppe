@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { AddressSelector } from "@/components/checkout/AddressSelector"
 import { OrderReviewSection } from "@/components/checkout/OrderReviewSection"
 import { VoucherInput, type AppliedVoucherState } from "@/components/checkout/VoucherInput"
+import { CoinRedeemPanel, type AppliedCoinsState } from "@/components/checkout/CoinRedeemPanel"
 import { PlaceOrderButton } from "@/components/checkout/PlaceOrderButton"
 import { PaymentMethodSelector, type PaymentMethod } from "@/components/checkout/PaymentMethodSelector"
 import { getShippingOptionsForAddress } from "@/app/(shop)/checkout/actions"
@@ -13,12 +14,14 @@ import type { ShippingRateOption } from "@/lib/shipping/rates"
 interface CheckoutShellProps {
   addresses: AddressItem[]
   groups: CartGroup[]
+  coinBalance: number
 }
 
-export function CheckoutShell({ addresses, groups }: CheckoutShellProps) {
+export function CheckoutShell({ addresses, groups, coinBalance }: CheckoutShellProps) {
   const defaultAddress = addresses.find((a) => a.isDefault) ?? addresses[0]
   const [selectedAddressId, setSelectedAddressId] = useState(defaultAddress?.id ?? "")
   const [applied, setApplied] = useState<AppliedVoucherState | null>(null)
+  const [coinsApplied, setCoinsApplied] = useState<AppliedCoinsState | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("COD")
   const [shippingOptions, setShippingOptions] = useState<Record<string, ShippingRateOption[]>>({})
   const [shippingLoading, setShippingLoading] = useState(false)
@@ -72,6 +75,12 @@ export function CheckoutShell({ addresses, groups }: CheckoutShellProps) {
           onSelect={setSelectedAddressId}
         />
         <VoucherInput applied={applied} onApply={setApplied} onRemove={() => setApplied(null)} />
+        <CoinRedeemPanel
+          balance={coinBalance}
+          voucherDiscount={applied?.discountAmount ?? 0}
+          applied={coinsApplied}
+          onApply={setCoinsApplied}
+        />
         <PaymentMethodSelector value={paymentMethod} onChange={setPaymentMethod} />
         <OrderReviewSection
           groups={groups}
@@ -90,6 +99,8 @@ export function CheckoutShell({ addresses, groups }: CheckoutShellProps) {
         shopCount={groups.length}
         voucherCode={applied?.voucher.code ?? null}
         discountAmount={applied?.discountAmount ?? 0}
+        coinsToRedeem={coinsApplied?.coinsApplied ?? 0}
+        coinDiscount={coinsApplied?.coinDiscount ?? 0}
         paymentMethod={paymentMethod}
         shippingSelections={selectedMethods}
         shippingReady={groups.every((g) => !!selectedMethods[g.shopId])}

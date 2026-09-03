@@ -9,6 +9,7 @@ import { requireShopAccess } from "@/lib/seller/access"
 import { createNotification } from "@/lib/notifications/create"
 import {
   buildOrderStatusCopy,
+  buildCoinsEarnedCopy,
   buildReviewReplyCopy,
   buildShopVacationEndCopy,
   buildStaffAddedCopy,
@@ -19,6 +20,8 @@ import { MIN_PAYOUT_AMOUNT } from "@/lib/payouts/config"
 import { logOrderEvent } from "@/lib/orders/timeline"
 import { adjustStock, logStockMovement } from "@/lib/inventory/stock"
 import { releaseReservationsForOrder } from "@/lib/inventory/reservations"
+import { accrueCoinsForOrder } from "@/lib/coins/accrual"
+import { grantCoins } from "@/lib/coins/ledger"
 import type { UpsertProductData, BulkProductPatch } from "@/types/seller"
 import type { StaffPermission } from "@/lib/generated/prisma/client"
 
@@ -487,6 +490,8 @@ export async function updateDeliveryStatus(orderId: string, status: DeliveryStat
 
   const seller = await getCurrentUser()
 
+  let coinsEarned = 0
+
   await prisma.$transaction(async (tx) => {
     await tx.shipment.update({ where: { orderId }, data: { status } })
     if (status === "DELIVERED") {
@@ -507,12 +512,16 @@ export async function updateDeliveryStatus(orderId: string, status: DeliveryStat
         actorId: seller?.id,
         actorRole: "SELLER",
       })
+      coinsEarned = await accrueCoinsForOrder(tx, order)
     }
   })
 
   if (status === "DELIVERED") {
     const deliveredCopy = buildOrderStatusCopy(orderId, "DELIVERED")
     if (deliveredCopy) await createNotification({ userId: order.userId, ...deliveredCopy })
+    if (coinsEarned > 0) {
+      await createNotification({ userId: order.userId, ...buildCoinsEarnedCopy(orderId, coinsEarned) })
+    }
   }
 
   revalidatePath(`/seller/orders/${orderId}`)
@@ -545,6 +554,15 @@ export async function cancelOrder(orderId: string): Promise<{ error?: string }> 
       })
     }
     await releaseReservationsForOrder(tx, orderId)
+    if (order.coinsUsed > 0) {
+      await grantCoins(tx, {
+        userId: order.userId,
+        coins: order.coinsUsed,
+        type: "REFUNDED",
+        orderId,
+        description: "Coins returned — order cancelled",
+      })
+    }
     await logOrderEvent(tx, {
       orderId,
       type: "ORDER_CANCELLED",

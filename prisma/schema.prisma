@@ -52,6 +52,8 @@ enum RefundStatus {
 enum CoinType {
   EARNED
   SPENT
+  EXPIRED
+  REFUNDED
 }
 
 enum ShopStatus {
@@ -393,6 +395,8 @@ model Order {
   total              Float
   shippingFee        Float       @default(0)
   discountAmount     Float       @default(0)
+  coinsUsed          Int         @default(0)
+  coinDiscount       Float       @default(0)
   paymentMethod      String?
   addressId          String
   voucherId          String?
@@ -416,6 +420,7 @@ model Order {
   stockMovements    StockMovement[]
   stockReservations StockReservation[]
   analyticsEvents   AnalyticsEvent[]
+  coinLogs          Coin[]
 
   @@index([userId])
   @@index([shopId, status])
@@ -797,14 +802,22 @@ model SearchHistory {
 }
 
 model Coin {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   userId      String
   amount      Int
   type        CoinType
   description String?
-  createdAt   DateTime @default(now())
+  orderId     String?
+  expiresAt   DateTime?
+  remaining   Int       @default(0)
+  createdAt   DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user  User   @relation(fields: [userId], references: [id])
+  order Order? @relation(fields: [orderId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([userId, expiresAt])
+  @@index([orderId, type])
 }
 
 model StockMovement {

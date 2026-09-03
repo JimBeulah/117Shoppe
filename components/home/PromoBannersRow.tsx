@@ -14,7 +14,7 @@ const PERKS = [
     icon: Coins,
     title: "Coins Cashback",
     subtitle: "Earn on every order",
-    href: "/coins",
+    href: "/account/coins",
     color: "text-pink-500",
     bg: "bg-pink-50",
   },
